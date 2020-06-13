@@ -1761,7 +1761,7 @@ static int hub_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 #ifdef	CONFIG_USB_OTG_BLACKLIST_HUB
 	if (hdev->parent) {
-		dev_warn(&intf->dev, "ignoring external hub\n");
+		dev_warn(&intf->dev, "External hub not Supported\n");
 		return -ENODEV;
 	}
 #endif
@@ -2279,6 +2279,7 @@ static int usb_enumerate_device_otg(struct usb_device *udev)
 		}
 	}
 #endif
+fail:
 	return err;
 }
 

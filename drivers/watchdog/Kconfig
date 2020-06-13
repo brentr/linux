@@ -471,6 +471,15 @@ config SIRFSOC_WATCHDOG
 	  Support for CSR SiRFprimaII and SiRFatlasVI watchdog. When
 	  the watchdog triggers the system will be reset.
 
+config LPC313X_WATCHDOG
+	tristate "NXP LPC313x watchdog"
+	depends on ARCH_LPC313X
+	help
+	  Say Y here if to include support for the watchdog timer
+	  for the NXP's LPC313x uC SoC.
+	  To compile this driver as a module, choose M here: the
+	  module will be called wdt_lpc313x.
+
 config TEGRA_WATCHDOG
 	tristate "Tegra watchdog"
 	depends on (ARCH_TEGRA || COMPILE_TEST) && HAS_IOMEM

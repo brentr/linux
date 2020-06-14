@@ -106,7 +106,7 @@ static P_CGU_CLOCK_ID_T clkarray[CLK_TX_1 + 1] = {
  *            8K  11.025K 12K 16K 22.05K 24K 32K 44.1K 48K
  *  128FS     48          32  24         16  12        8
  *  256FS     24          16  12         8   6         4
- *  384FS     16              8              4         
+ *  384FS     16              8              4
  *  512FS     12          8              4   3         2
  *  768FS     8               4              2
  *  1024FS    6           4   3          2             1
@@ -122,9 +122,9 @@ static CGU_HPLL_SETUP_T pllsetup_48K_1024 = {
  *  128FS     36          24  18         12            6
  *  256FS     18          12  9          6             3
  *  384FS     12          8   6          4   3         2
- *  512FS     9           6                            
+ *  512FS     9           6
  *  768FS     6           4              2             1
- *  1024FS                                             
+ *  1024FS
 */
 static CGU_HPLL_SETUP_T pllsetup_48K_768 = {
 	CGU_FIN_SELECT_FFAST, 514, 21299, 21, 0, 44, 22, 0, (48000 * 768)
@@ -136,9 +136,9 @@ static CGU_HPLL_SETUP_T pllsetup_48K_768 = {
  *            8K  11.025K 12K 16K 22.05K 24K 32K 44.1K 48K
  *  128FS         32              16              8
  *  256FS         16              8               4
- *  384FS                                         
+ *  384FS
  *  512FS         8               4               2
- *  768FS                                         
+ *  768FS
  *  1024FS        4               2               1
 */
 static CGU_HPLL_SETUP_T pllsetup_44_1K_1024 = {
@@ -152,9 +152,9 @@ static CGU_HPLL_SETUP_T pllsetup_44_1K_1024 = {
  *  128FS         24              12              6
  *  256FS         12              6               3
  *  384FS         8               4               2
- *  512FS         6               3                
+ *  512FS         6               3
  *  768FS         4               2               1
- *  1024FS        3                               
+ *  1024FS        3
 */
 static CGU_HPLL_SETUP_T pllsetup_44_1K_768 = {
 	CGU_FIN_SELECT_FFAST, 514, 19660, 11, 0, 48, 23, 0, (44100 * 768)
@@ -164,12 +164,12 @@ static CGU_HPLL_SETUP_T pllsetup_44_1K_768 = {
    32768000Hz FS clock, error .01638Hz
    used for the following rates with the following dividers:
  *            8K  11.025K 12K 16K 22.05K 24K 32K 44.1K 48K
- *  128FS     32              16             8    
- *  256FS     16              8              4    
- *  384FS                                         
- *  512FS     8               4              2    
- *  768FS                                         
- *  1024FS                                   1    
+ *  128FS     32              16             8
+ *  256FS     16              8              4
+ *  384FS
+ *  512FS     8               4              2
+ *  768FS
+ *  1024FS                                   1
 */
 static CGU_HPLL_SETUP_T pllsetup_32K_1024 = {
 	CGU_FIN_SELECT_FFAST, 770, 32765, 21, 0, 20, 10, 0, (32000 * 1024)
@@ -184,6 +184,15 @@ static CGU_HPLL_SETUP_T *ppll_list[] = {
 	NULL
 };
 
+#if defined(CONFIG_SND_LPC315X_SOC)
+/* For LPC315X Analog CODEC 128FS clock has to be used */
+static const u32 fsdiv =
+#if defined (CONFIG_SND_CODEC_FS128)
+	128;
+#endif
+#endif
+
+#if defined(CONFIG_SND_LPC313X_SOC)
 static const u32 fsdiv =
 #if defined (CONFIG_SND_CODEC_FS256)
 	256;
@@ -195,6 +204,7 @@ static const u32 fsdiv =
 	768;
 #elif defined (CONFIG_SND_CODEC_FS1024)
 	1024;
+#endif
 #endif
 
 static u32 lpc313x_set_best_rate(u32 freq)
@@ -340,7 +350,7 @@ u32 lpc313x_main_clk_rate(u32 freq)
 	/* Compute and set proper divider */
 	ret = lpc313x_set_codec_freq(freq);
 #if defined (CONFIG_SND_DEBUG_VERBOSE)
-	pr_info("LPC313x ASOC main clock : %d (%d)\n", 
+	pr_info("LPC313x ASOC main clock : %d (%d)\n",
 		i2s_clk_state.target_codec_rate,
 		i2s_clk_state.real_fs_codec_rate);
 #endif

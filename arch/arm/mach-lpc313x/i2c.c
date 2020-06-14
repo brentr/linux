@@ -37,18 +37,18 @@
 
 static int set_clock_run(struct platform_device *pdev)
 {
-	if (pdev->id)
+	if (pdev->id == 0)
 		cgu_clk_en_dis( CGU_SB_I2C0_PCLK_ID, 1);
 	else
 		cgu_clk_en_dis( CGU_SB_I2C1_PCLK_ID, 1);
-	
+
 	udelay(2);
 	return 0;
 }
 
 static int set_clock_stop(struct platform_device *pdev)
 {
-	if (pdev->id)
+	if (pdev->id == 0)
 		cgu_clk_en_dis( CGU_SB_I2C0_PCLK_ID, 0);
 	else
 		cgu_clk_en_dis( CGU_SB_I2C1_PCLK_ID, 0);
@@ -149,7 +149,7 @@ void __init lpc313x_register_i2c_devices(void)
 #if defined (CONFIG_MACH_VAL3153) || defined (CONFIG_MACH_EA313X)
 	/* on EA and VAL boards UDA1380 is connected to I2C1
 	 * whose slave address is same as LPC313x's default slave
-	 * adress causing bus contention errors. So change the 
+	 * adress causing bus contention errors. So change the
 	 * deafult slave address register value of LPC313x here.
 	 */
 	LPC313x_I2C0_SLV_ADDR = 0x06E;

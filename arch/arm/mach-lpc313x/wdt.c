@@ -30,10 +30,6 @@ static struct resource watchdog_resources[] = {
 		.end = WDT_PHYS + SZ_4K - 1,
 		.flags = IORESOURCE_MEM,
 	},
-	{
-		.start = IRQ_WDT,
-		.flags = IORESOURCE_IRQ,
-	},
 };
 
 static struct platform_device watchdog_device = {

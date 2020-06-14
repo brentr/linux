@@ -56,6 +56,23 @@ struct psu_data {
 
 static struct psu_data g_pca_data;
 
+/* I2C client structure is required for I2C communications.
+ * The probe function is called only once when driver is added.
+ * Hence the following function be used by the other drivers,
+ * to get I2C client structure
+ */
+struct i2c_client *lpc315x_ad_get_i2c_client_struct(void)
+{
+	/* Check if psu_data structure is initialised */
+	if(!g_pca_data.client) {
+		printk(KERN_ERR "I2C not initialised \r\n");
+		return NULL;
+	}
+
+	return g_pca_data.client;
+}
+EXPORT_SYMBOL(lpc315x_ad_get_i2c_client_struct);
+
 /* following are the sysfs callback functions */
 static ssize_t psu_show(struct device *dev, struct device_attribute *attr,
 			    char *buf)
@@ -141,7 +158,7 @@ static struct attribute *psu_attributes[] = {
 	&sensor_dev_attr_rtc_set_ena_stat.dev_attr.attr,
 	&sensor_dev_attr_rtc_clr_ena_stat.dev_attr.attr,
 	&sensor_dev_attr_mod_id.dev_attr.attr,
-	NULL		           
+	NULL
 };
 
 static struct attribute_group psu_defattr_group = {

@@ -786,6 +786,15 @@ config ARCH_OMAP1
 	help
 	  Support for older TI OMAP1 (omap7xx, omap15xx or omap16xx)
 
+config ARCH_LPC313X
+       bool "NXP LPC313X series"
+       select CPU_ARM926T
+       help
+         Say Y here for systems based on one of the NXP LPC313x & LPC315x
+         System on a Chip processors.  These CPUs include an ARM926EJS
+         core with a wide array of integrated devices for
+         hand-held and low-power applications.
+
 endchoice
 
 menu "Multiple platform selection"
@@ -972,6 +981,8 @@ source "arch/arm/plat-versatile/Kconfig"
 source "arch/arm/mach-vt8500/Kconfig"
 
 source "arch/arm/mach-w90x900/Kconfig"
+
+source "arch/arm/mach-lpc313x/Kconfig"
 
 source "arch/arm/mach-zynq/Kconfig"
 

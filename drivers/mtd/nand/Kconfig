@@ -476,6 +476,12 @@ config MTD_NAND_DAVINCI
 	  Enable the driver for NAND flash chips on Texas Instruments
 	  DaVinci/Keystone processors.
 
+config MTD_NAND_LPC313X
+       tristate "Support for NAND Controller on NXP LPC313x"
+       depends on ARCH_LPC313X
+       help
+         This enables the NAND flash controller on the LPC313x
+
 config MTD_NAND_TXX9NDFMC
 	tristate "NAND Flash support for TXx9 SoC"
 	depends on SOC_TX4938 || SOC_TX4939

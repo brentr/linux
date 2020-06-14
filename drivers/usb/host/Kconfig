@@ -211,6 +211,14 @@ config USB_EHCI_HCD_AT91
           Enables support for the on-chip EHCI controller on
           Atmel chips.
 
+config USB_EHCI_HCD_LPC313X
+        tristate  "Support for NXP LPC313X on-chip EHCI USB controller"
+        depends on USB_EHCI_HCD && ARCH_LPC313X
+        default y
+        ---help---
+          Enables support for the on-chip EHCI controller on
+          NXP 313X chips.
+
 config USB_EHCI_MSM
 	tristate "Support for Qualcomm QSD/MSM on-chip EHCI USB controller"
 	depends on ARCH_MSM || ARCH_QCOM

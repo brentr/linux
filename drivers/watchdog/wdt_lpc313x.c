@@ -39,6 +39,11 @@
 #define WDT_IN_USE        0
 #define WDT_OK_TO_CLOSE   1
 
+/* Set when a watchdog reset has occurred (read only). 
+ * This bit is cleared only by a power on reset.
+ */
+#define LPC313x_WD_BARK      (0x13004C04)
+
 /* Offset of WDT registers */
 #define LPC313x_WDT_IR       0x00
 #define LPC313x_WDT_TCR      0x04
@@ -63,22 +68,22 @@
 #define RESET_MR1    (1 << 4)
 #define STOP_MR1     (1 << 5)
 
+#define TOGGLE_EMR1   	(3 << 6)
+
 static int nowayout = WATCHDOG_NOWAYOUT;
 static int heartbeat = DEFAULT_HEARTBEAT;
 
-static struct lpc313x_wdt
-{
+static struct lpc313x_wdt {
 	spinlock_t lock;
-	void __iomem * base;
-	int irq;
+	void __iomem *base;
 	unsigned long status;
 	unsigned long boot_status;
-	struct device * dev;
-}lpc313x_wdt;
+	struct device *dev;
+} lpc313x_wdt;
 
-static void lpc313x_wdt_stop(struct lpc313x_wdt * wdt)
+static void lpc313x_wdt_stop(struct lpc313x_wdt *wdt)
 {
-	void __iomem * base = wdt->base;
+	void __iomem *base = wdt->base;
 
 	/* Disable watchdog clock */
 	cgu_clk_en_dis(CGU_SB_WDOG_PCLK_ID, 0);
@@ -87,34 +92,36 @@ static void lpc313x_wdt_stop(struct lpc313x_wdt * wdt)
 	writel(TCR_RST, base + LPC313x_WDT_TCR);
 
 	/* Clear interrupts */
-	writel(INTR_M0 | INTR_M1, base + LPC313x_WDT_TCR);
+	writel(INTR_M1, base + LPC313x_WDT_TCR);
 	writel(0, base + LPC313x_WDT_MCR);
 	writel(0, base + LPC313x_WDT_PC);
 	writel(0, base + LPC313x_WDT_PR);
+
+	writel(0, base + LPC313x_WDT_EMR);
 
 	/* Bring counter out of reset */
 	writel(0, base + LPC313x_WDT_TCR);
 }
 
-static void lpc313x_wdt_start(struct lpc313x_wdt * wdt)
+static void lpc313x_wdt_start(struct lpc313x_wdt *wdt)
 {
 	uint32_t freq;
-	void __iomem * base = wdt->base;
+	void __iomem *base = wdt->base;
 
 	/* Enable WDOG_PCLK and get its frequency */
 	cgu_clk_en_dis(CGU_SB_WDOG_PCLK_ID, 1);
 	freq = cgu_get_clk_freq(CGU_SB_WDOG_PCLK_ID);
-	writel(freq-1, base + LPC313x_WDT_PR);
-	writel(heartbeat, base + LPC313x_WDT_MR0);
-	writel(INTEN_MR0 | STOP_MR0, base + LPC313x_WDT_MCR);
+	writel(freq - 1, base + LPC313x_WDT_PR);
+	writel(heartbeat, base + LPC313x_WDT_MR1);
+	writel(TOGGLE_EMR1, base + LPC313x_WDT_EMR);
 
 	/* Start WDT */
 	writel(TCR_EN, base + LPC313x_WDT_TCR);
 }
 
-static void lpc313x_wdt_keepalive(struct lpc313x_wdt * wdt)
+static void lpc313x_wdt_keepalive(struct lpc313x_wdt *wdt)
 {
-	void __iomem * base = wdt->base;
+	void __iomem *base = wdt->base;
 	writel(0, base + LPC313x_WDT_PC);
 	writel(0, base + LPC313x_WDT_TC);
 }
@@ -139,14 +146,14 @@ static int lpc313x_wdt_open(struct inode *inode, struct file *file)
 	clear_bit(WDT_OK_TO_CLOSE, &wdt->status);
 
 	/*
-	 *	Activate
+	 *      Activate
 	 */
 	lpc313x_wdt_start(wdt);
 	return nonseekable_open(inode, file);
 }
 
 static ssize_t lpc313x_wdt_write(struct file *file, const char *data,
-					size_t len, loff_t *ppos)
+				 size_t len, loff_t * ppos)
 {
 	struct lpc313x_wdt *wdt = &lpc313x_wdt;
 	if (len) {
@@ -177,11 +184,12 @@ static const struct watchdog_info ident = {
 };
 
 static long lpc313x_wdt_ioctl(struct file *file, unsigned int cmd,
-				unsigned long arg)
+			      unsigned long arg)
 {
 	int ret = -ENOTTY;
 	int time;
-	struct lpc313x_wdt * wdt = &lpc313x_wdt;
+	struct lpc313x_wdt *wdt = &lpc313x_wdt;
+	void __iomem *base = wdt->base;
 
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
@@ -210,12 +218,13 @@ static long lpc313x_wdt_ioctl(struct file *file, unsigned int cmd,
 
 		if (time <= 0 || time > MAX_HEARTBEAT) {
 			dev_err(wdt->dev, "Timeout value should be an "
-					"integer between 1 to %d\n", MAX_HEARTBEAT);
+				"integer between 1 to %d\n", MAX_HEARTBEAT);
 			ret = -EINVAL;
 			break;
 		}
 
 		heartbeat = time;
+		writel(heartbeat, base + LPC313x_WDT_MR1);
 		lpc313x_wdt_keepalive(wdt);
 		dev_vdbg(wdt->dev, "Timeout set to: %d\n", time);
 		/* Fall through */
@@ -229,11 +238,14 @@ static long lpc313x_wdt_ioctl(struct file *file, unsigned int cmd,
 
 static int lpc313x_wdt_release(struct inode *inode, struct file *file)
 {
-	struct lpc313x_wdt * wdt = &lpc313x_wdt;
+	struct lpc313x_wdt *wdt = &lpc313x_wdt;
 	if (!test_bit(WDT_OK_TO_CLOSE, &wdt->status))
 		dev_warn(wdt->dev, "Watchdog timer closed unexpectedly\n");
 
-	lpc313x_wdt_stop(wdt);
+	if (!nowayout) {
+		lpc313x_wdt_stop(wdt);
+	}
+
 	clear_bit(WDT_IN_USE, &wdt->status);
 	clear_bit(WDT_OK_TO_CLOSE, &wdt->status);
 
@@ -241,66 +253,29 @@ static int lpc313x_wdt_release(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations lpc313x_wdt_fops = {
-	.owner 		= THIS_MODULE,
-	.llseek		= no_llseek,
-	.unlocked_ioctl	= lpc313x_wdt_ioctl,
-	.open 		= lpc313x_wdt_open,
-	.write 		= lpc313x_wdt_write,
-	.release 	= lpc313x_wdt_release,
+	.owner = THIS_MODULE,
+	.llseek = no_llseek,
+	.unlocked_ioctl = lpc313x_wdt_ioctl,
+	.open = lpc313x_wdt_open,
+	.write = lpc313x_wdt_write,
+	.release = lpc313x_wdt_release,
 };
 
 static struct miscdevice lpc313x_wdt_misc = {
-	.minor 	= WATCHDOG_MINOR,
-	.name 	= "watchdog",
-	.fops 	= &lpc313x_wdt_fops,
+	.minor = WATCHDOG_MINOR,
+	.name = "watchdog",
+	.fops = &lpc313x_wdt_fops,
 };
-
-/**
- *	lpc313x_wdt_isr:
- *	@irq:		Interrupt number
- *	@dev_id:	Unused as we don't allow multiple devices.
- *
- *	Handle an interrupt from the board. These are raised when the status
- *	map changes in what the board considers an interesting way. That means
- *	a failure condition occurring.
- */
-
-static irqreturn_t lpc313x_wdt_isr(int irq, void *dev_id)
-{
-	/*
-	 *	Read the status register see what is up and
-	 *	then printk it.
-	 */
-	uint32_t status;
-	struct lpc313x_wdt * wdt = &lpc313x_wdt;
-
-	spin_lock(&wdt->lock);
-	status = readl(wdt->base + LPC313x_WDT_IR);
-
-	dev_vdbg(wdt->dev, "WDT status %d\n", status);
-
-	dev_crit(wdt->dev, "WDT timedout\n");
-
-	writel(status, wdt->base + LPC313x_WDT_IR);
-	spin_unlock(&wdt->lock);
-	return IRQ_HANDLED;
-}
 
 static int lpc313x_wdt_probe(struct platform_device *pdev)
 {
 	int ret;
-	struct resource * res;
-	struct lpc313x_wdt * wdt = &lpc313x_wdt;
+	struct resource *res;
+	struct lpc313x_wdt *wdt = &lpc313x_wdt;
 	uint32_t size;
 
 	spin_lock_init(&wdt->lock);
 	wdt->dev = &pdev->dev;
-	wdt->irq = platform_get_irq(pdev, 0);
-	if (wdt->irq < 0) {
-		dev_err(&pdev->dev, "No IRQ resource found\n");
-		return -ENXIO;
-	}
-
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
 		dev_err(&pdev->dev, "Unable to get resources.\n");
@@ -308,23 +283,16 @@ static int lpc313x_wdt_probe(struct platform_device *pdev)
 	}
 
 	size = res->end - res->start + 1;
-	if(devm_request_mem_region(&pdev->dev, 
-			res->start, size, pdev->name) == NULL) {
-		dev_err (&pdev->dev, "Requested memory region unavailable\n");
+	if (devm_request_mem_region(&pdev->dev,
+				    res->start, size, pdev->name) == NULL) {
+		dev_err(&pdev->dev, "Requested memory region unavailable\n");
 		return -EBUSY;
 	}
 
 	wdt->base = devm_ioremap(&pdev->dev, res->start, size);
 	if (wdt->base == NULL) {
-		dev_err (&pdev->dev, "Unable to remap memory region\n");
+		dev_err(&pdev->dev, "Unable to remap memory region\n");
 		return -ENOMEM;
-	}
-
-	ret = devm_request_irq(&pdev->dev, wdt->irq, lpc313x_wdt_isr, 
-			IRQF_DISABLED, pdev->name, NULL);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Unable to request IRQ%d\n", wdt->irq);
-		return ret;
 	}
 
 	ret = misc_register(&lpc313x_wdt_misc);
@@ -334,8 +302,9 @@ static int lpc313x_wdt_probe(struct platform_device *pdev)
 	}
 	platform_set_drvdata(pdev, wdt);
 
-	wdt->boot_status = (readl((void __iomem *) io_p2v(CGU_SB_PHYS)) & 0x1) ?
-		WDIOF_CARDRESET : 0;
+	wdt->boot_status =
+	    (readl((void __iomem *)io_p2v(LPC313x_WD_BARK)) & 0x1) ?
+	    WDIOF_CARDRESET : 0;
 	lpc313x_wdt_stop(wdt);
 	dev_info(&pdev->dev, "Watchdog device driver initialized.\n");
 	return 0;
@@ -343,7 +312,7 @@ static int lpc313x_wdt_probe(struct platform_device *pdev)
 
 static int lpc313x_wdt_remove(struct platform_device *pdev)
 {
-	struct lpc313x_wdt * wdt = &lpc313x_wdt;
+	struct lpc313x_wdt *wdt = &lpc313x_wdt;
 
 	/* Stop the hardware */
 	lpc313x_wdt_stop(wdt);
@@ -357,9 +326,9 @@ static struct platform_driver lpc313x_wdt_driver = {
 	.probe = lpc313x_wdt_probe,
 	.remove = __devexit_p(lpc313x_wdt_remove),
 	.driver = {
-		.owner = THIS_MODULE,
-		.name = "lpc313x-wdt",
-	},
+		   .owner = THIS_MODULE,
+		   .name = "lpc313x-wdt",
+		   },
 };
 
 static int __init lpc313x_wdt_init(void)

@@ -29,7 +29,6 @@
 #include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/leds.h>
 
 #include <asm/mach/time.h>
 #include <mach/gpio.h>
@@ -50,33 +49,17 @@ static struct irqaction lpc313x_timer_irq = {
 	.handler	= lpc313x_timer_interrupt,
 };
 
-static void __init lpc313x_timer_init (void)
-{
-	/* Switch on needed Timer clocks & switch off others*/
-	cgu_clk_en_dis(CGU_SB_TIMER0_PCLK_ID, 1);
-	cgu_clk_en_dis(CGU_SB_TIMER1_PCLK_ID, 0);
-	cgu_clk_en_dis(CGU_SB_TIMER2_PCLK_ID, 0);
-	cgu_clk_en_dis(CGU_SB_TIMER3_PCLK_ID, 0);
-
-	/* Stop/disable all timers */
-	TIMER_CONTROL(TIMER0_PHYS) = 0;
-
-	TIMER_LOAD(TIMER0_PHYS) = LATCH;
-	TIMER_CONTROL(TIMER0_PHYS) = (TM_CTRL_ENABLE | TM_CTRL_PERIODIC);
-	TIMER_CLEAR(TIMER0_PHYS) = 0;
-	setup_irq (IRQ_TIMER0, &lpc313x_timer_irq);
-}
-
-/*!
+/*
  * Returns number of us since last clock interrupt.  Note that interrupts
  * will have been disabled by do_gettimeoffset()
  */
-static unsigned long lpc313x_gettimeoffset(void)
+static u32 lpc313x_gettimeoffset(void)
 {
 	u32 elapsed = LATCH - TIMER_VALUE(TIMER0_PHYS);
 	return ((elapsed * 100) / (XTAL_CLOCK / 20000));
 }
 
+#if 0
 static void lpc313x_timer_suspend(void)
 {
 	TIMER_CONTROL(TIMER0_PHYS) &= ~TM_CTRL_ENABLE;	/* disable timers */
@@ -86,11 +69,23 @@ static void lpc313x_timer_resume(void)
 {
 	TIMER_CONTROL(TIMER0_PHYS) |= TM_CTRL_ENABLE;	/* enable timers */
 }
+#endif
 
+void __init lpc313x_timer_init (void)
+{
+	/* Switch on needed Timer clocks & switch off others*/
+	cgu_clk_en_dis(CGU_SB_TIMER0_PCLK_ID, 1);
+	cgu_clk_en_dis(CGU_SB_TIMER1_PCLK_ID, 0);
+	cgu_clk_en_dis(CGU_SB_TIMER2_PCLK_ID, 0);
+	cgu_clk_en_dis(CGU_SB_TIMER3_PCLK_ID, 0);
 
-struct sys_timer lpc313x_timer = {
-	.init = lpc313x_timer_init,
-	.offset = lpc313x_gettimeoffset,
-	.suspend = lpc313x_timer_suspend,
-	.resume = lpc313x_timer_resume,
-};
+	/* Stop/disable all timer, then start periodic interrupts */
+	TIMER_CONTROL(TIMER0_PHYS) = 0;
+	TIMER_LOAD(TIMER0_PHYS) = LATCH;
+	TIMER_CONTROL(TIMER0_PHYS) = (TM_CTRL_ENABLE | TM_CTRL_PERIODIC);
+	TIMER_CLEAR(TIMER0_PHYS) = 0;
+
+	setup_irq (IRQ_TIMER0, &lpc313x_timer_irq);
+	arch_gettimeoffset = lpc313x_gettimeoffset;
+}
+

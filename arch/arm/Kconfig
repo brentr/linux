@@ -608,13 +608,12 @@ config ARCH_W90X900
 config ARCH_LPC313X
        bool "NXP LPC313X series"
 	select ARCH_REQUIRE_GPIOLIB
+	select ARCH_USES_GETTIMEOFFSET
 	select ARM_AMBA
-	select CLKDEV_LOOKUP
-	select CLKSRC_MMIO
 	select CPU_ARM926T
-	select GENERIC_CLOCKEVENTS
 	select HAVE_IDE
 	select HAVE_PWM
+        select IRQ_DOMAIN
        help
          Say Y here for systems based on one of the NXP LPC313x & LPC315x
          System on a Chip processors.  These CPUs include an ARM926EJS

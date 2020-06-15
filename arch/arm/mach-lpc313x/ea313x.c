@@ -61,7 +61,7 @@ static irqreturn_t ea313x_mci_detect_interrupt(int irq, void *data)
 	/* select the opposite level senstivity */
 	int level = mci_get_cd(0)?IRQ_TYPE_LEVEL_LOW:IRQ_TYPE_LEVEL_HIGH;
 
-	set_irq_type(pdata->irq, level);
+	irq_set_irq_type(pdata->irq, level);
 
 	/* change the polarity of irq trigger */
 	return pdata->irq_hdlr(irq, pdata->data);
@@ -82,11 +82,11 @@ static int mci_init(u32 slot_id, irq_handler_t irqhdlr, void *data)
 	/* set card detect irq info */
 	irq_data.data = data;
 	irq_data.irq_hdlr = irqhdlr;
-	set_irq_type(irq_data.irq, level);
+	irq_set_irq_type(irq_data.irq, level);
 	ret = request_irq(irq_data.irq,
 			ea313x_mci_detect_interrupt,
 			level,
-			"mmc-cd", 
+			"mmc-cd",
 			&irq_data);
 	/****temporary for PM testing */
 	enable_irq_wake(irq_data.irq);
@@ -108,7 +108,7 @@ static void mci_setpower(u32 slot_id, u32 volt)
 {
 	/* on current version of EA board the card detect
 	 * pull-up in on switched power side. So can't do
-	 * power management so use the always enable power 
+	 * power management so use the always enable power
 	 * jumper.
 	 */
 }
@@ -179,10 +179,10 @@ static struct resource dm9000_resource[] = {
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
 	}
 };
-/* ARM MPMC contoller as part of low power design doesn't de-assert nCS and nOE for consecutive 
+/* ARM MPMC contoller as part of low power design doesn't de-assert nCS and nOE for consecutive
 reads but just changes address. But DM9000 requires nCS and nOE change between address. So access
-other chip select area (nCS0) to force de-assertion of nCS1 and nOE1. Or else wait for long time 
-such as 80 usecs. 
+other chip select area (nCS0) to force de-assertion of nCS1 and nOE1. Or else wait for long time
+such as 80 usecs.
 LPC313x has external logic outside of MPMC IP to toggle nOE to split consecutive reads.
 The latest Apex bootloader pacth makes use of this feture.
 For this to work SYS_MPMC_WTD_DEL0 & SYS_MPMC_WTD_DEL1 should be programmed with MPMC_STWTRD0
@@ -482,13 +482,12 @@ static void __init ea313x_init(void)
 	lpc313x_init();
 	/* register i2cdevices */
 	lpc313x_register_i2c_devices();
-	
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
 	/* add DM9000 device */
 	ea_add_device_dm9000();
-	
+
 	i2c_register_board_info(0, ea313x_i2c_devices,
 		ARRAY_SIZE(ea313x_i2c_devices));
 
@@ -498,11 +497,38 @@ static void __init ea313x_init(void)
 #endif
 }
 
+static void lpc313x_reset(enum reboot_mode mode, const char *cmd)
+{
+	(void) mode; //unused
+	printk("arch_reset: via watchdog\n");
+
+	/* enable WDT clock */
+	cgu_clk_en_dis(CGU_SB_WDOG_PCLK_ID, 1);
+
+	/* Disable watchdog */
+	WDT_TCR = 0;
+	WDT_MCR = WDT_MCR_STOP_MR1 | WDT_MCR_INT_MR1;
+
+	/*  If TC and MR1 are equal a reset is generated. */
+	WDT_PR  = 0x00000002;
+	WDT_TC  = 0x00000FF0;
+	WDT_MR0 = 0x0000F000;
+	WDT_MR1 = 0x00001000;
+	WDT_EMR = WDT_EMR_CTRL1(0x3);
+	/* Enable watchdog timer; assert reset at timer timeout */
+	WDT_TCR = WDT_TCR_CNT_EN;
+	cpu_reset (0);/* loop forever and wait for reset to happen */
+
+	/*NOTREACHED*/
+}
+
 static void __init ea313x_map_io(void)
 {
 	lpc313x_map_io();
 	iotable_init(ea313x_io_desc, ARRAY_SIZE(ea313x_io_desc));
 }
+
+extern void lpc313x_timer_init(void);
 
 #if defined(CONFIG_MACH_EA3152)
 MACHINE_START(EA3152, "NXP EA3152")
@@ -520,13 +546,12 @@ MACHINE_END
 #if defined(CONFIG_MACH_EA313X)
 MACHINE_START(EA313X, "NXP EA313X")
 	/* Maintainer: Durgesh Pattamatta, NXP */
-	.phys_io	= IO_APB01_PHYS,
-	.io_pg_offst	= (io_p2v(IO_APB01_PHYS) >> 18) & 0xfffc,
-	.boot_params	= 0x30000100,
+	.atag_offset	= 0x100,
 	.map_io		= ea313x_map_io,
 	.init_irq	= lpc313x_init_irq,
-	.timer		= &lpc313x_timer,
+	.init_time	= lpc313x_timer_init,
 	.init_machine	= ea313x_init,
+	.restart	= lpc313x_reset,
 MACHINE_END
 #endif
 

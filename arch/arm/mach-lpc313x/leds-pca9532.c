@@ -28,7 +28,6 @@
 #include <linux/input.h>
 #include <linux/mutex.h>
 #include <linux/leds-pca9532.h>
-#include <asm/leds.h>
 #include <mach/gpio.h>
 
 #define VBUS_PWR_EN	6
@@ -90,7 +89,7 @@ static void pca9532_setgpio(int led_id, int state)
 	ret = g_leds[led_id >> 2];
 #endif
 	printk ("pca9532: r: 0x%x w: 0x%x reg:0x%x\n", (u8)(ret & 0xFF), reg, LED_REG(led_id));
-	  
+
 	if (ret != reg)
 		i2c_smbus_write_byte_data(client, LED_REG(led_id), reg);
 

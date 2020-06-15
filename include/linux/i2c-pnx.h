@@ -12,8 +12,9 @@
 #ifndef __I2C_PNX_H__
 #define __I2C_PNX_H__
 
+#include <linux/pm.h>
+
 struct platform_device;
-struct clk;
 
 struct i2c_pnx_mif {
 	int			ret;		/* Return value */
@@ -22,17 +23,23 @@ struct i2c_pnx_mif {
 	struct timer_list	timer;		/* Timeout */
 	u8 *			buf;		/* Data buffer */
 	int			len;		/* Length of data buffer */
-	int			order;		/* RX Bytes to order via TX */
 };
 
 struct i2c_pnx_algo_data {
-	void __iomem		*ioaddr;
+	u32			base;
+	u32			ioaddr;
+	int			irq;
 	struct i2c_pnx_mif	mif;
 	int			last;
-	struct clk		*clk;
-	struct i2c_adapter	adapter;
-	int			irq;
-	u32			timeout;
+};
+
+struct i2c_pnx_data {
+	int (*suspend) (struct platform_device *pdev, pm_message_t state);
+	int (*resume) (struct platform_device *pdev);
+	u32 (*calculate_input_freq) (struct platform_device *pdev);
+	int (*set_clock_run) (struct platform_device *pdev);
+	int (*set_clock_stop) (struct platform_device *pdev);
+	struct i2c_adapter *adapter;
 };
 
 #endif /* __I2C_PNX_H__ */

@@ -184,7 +184,7 @@ reads but just changes address. But DM9000 requires nCS and nOE change between a
 other chip select area (nCS0) to force de-assertion of nCS1 and nOE1. Or else wait for long time
 such as 80 usecs.
 LPC313x has external logic outside of MPMC IP to toggle nOE to split consecutive reads.
-The latest Apex bootloader pacth makes use of this feture.
+The latest Apex bootloader pacth makes use of this feature.
 For this to work SYS_MPMC_WTD_DEL0 & SYS_MPMC_WTD_DEL1 should be programmed with MPMC_STWTRD0
 & MPMC_STWTRD1 values. The logic only deactivates the nOE for one clock cycle which is
 11nsec but DM9000 needs 80nsec between nOEs. So lets add some dummy instructions such as
@@ -495,6 +495,17 @@ static void __init ea313x_init(void)
 	i2c_register_board_info(1, ea3152_i2c1_devices,
 		ARRAY_SIZE(ea3152_i2c1_devices));
 #endif
+}
+
+void lpc313x_vbus_power(int enable)
+{
+	if (enable) {
+		printk (KERN_INFO "USB host power ON\n");
+//		pca9532_setgpio(VBUS_PWR_EN, PCA9532_LED_ON);
+	} else {
+		printk (KERN_INFO "USB host power OFF\n");
+//		pca9532_setgpio(VBUS_PWR_EN, PCA9532_LED_OFF);
+	}
 }
 
 static void lpc313x_reset(enum reboot_mode mode, const char *cmd)

@@ -15,6 +15,7 @@
 #include <linux/fsl_devices.h>
 #include <linux/usb/otg.h>
 #include <mach/board.h>
+#include <mach/hardware.h>
 
 static struct platform_driver ehci_lpc_driver;
 
@@ -25,7 +26,7 @@ static int lpc_ehci_init(struct usb_hcd *hcd)
 
 	ehci->caps = hcd->regs + 0x100;
 	ehci->regs = hcd->regs + 0x100
-		+ HC_LENGTH(ehci_readl(ehci, &ehci->caps->hc_capbase));
+		+ HC_LENGTH(ehci, ehci_readl(ehci, &ehci->caps->hc_capbase));
 	/* cache this readonly data; minimize chip reads */
 	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);
 
@@ -37,13 +38,12 @@ static int lpc_ehci_init(struct usb_hcd *hcd)
 	retval = ehci_init(hcd);
 	if (retval)
 		return retval;
-	
+
 	hcd->has_tt = 1;
 
 	ehci->sbrn = 0x20;
 	ehci_reset(ehci);
 
-	ehci_port_power(ehci, 0);
 	/* board vbus power */
 	//lpc313x_vbus_power(0);
 
@@ -133,7 +133,7 @@ static int lpc_ehci_probe(struct platform_device *pdev)
 	}
 	hcd->rsrc_start = res->start;
 	hcd->rsrc_len = res->end - res->start + 1;
-/*	
+/*
 	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len,
 				driver->description)) {
 		dev_dbg(&pdev->dev, "controller already in use\n");
@@ -151,7 +151,7 @@ static int lpc_ehci_probe(struct platform_device *pdev)
 	/* Set to Host mode */
 	writel(USBMODE_CM_HC, (hcd->regs + 0x1a8));
 
-	
+
 	retval = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (retval)
 		goto fail_add_hcd;

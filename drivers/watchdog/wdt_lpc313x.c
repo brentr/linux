@@ -39,7 +39,7 @@
 #define WDT_IN_USE        0
 #define WDT_OK_TO_CLOSE   1
 
-/* Set when a watchdog reset has occurred (read only). 
+/* Set when a watchdog reset has occurred (read only).
  * This bit is cleared only by a power on reset.
  */
 #define LPC313x_WD_BARK      (0x13004C04)
@@ -324,7 +324,7 @@ static int lpc313x_wdt_remove(struct platform_device *pdev)
 
 static struct platform_driver lpc313x_wdt_driver = {
 	.probe = lpc313x_wdt_probe,
-	.remove = __devexit_p(lpc313x_wdt_remove),
+	.remove = lpc313x_wdt_remove,
 	.driver = {
 		   .owner = THIS_MODULE,
 		   .name = "lpc313x-wdt",

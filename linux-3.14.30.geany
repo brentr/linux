@@ -11,7 +11,7 @@ replace_tabs=false
 
 [indentation]
 indent_width=2
-indent_type=1
+indent_type=2
 indent_hard_tab_width=4
 detect_indent=true
 detect_indent_width=true
@@ -43,10 +43,10 @@ external_dirs=
 
 [build-menu]
 NF_00_LB=_Make
-NF_00_CM=ltibMake
+NF_00_CM=ltibMake uImage
 NF_00_WD=%p
 NF_01_LB=Make Custom _Target...
-NF_01_CM=ltibMake
+NF_01_CM=ltibMake uImge modules
 NF_01_WD=%p
 NF_02_LB=Make _Object
 NF_02_CM=ltibMake %e.o

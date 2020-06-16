@@ -77,7 +77,7 @@ static struct lpc313x_i2s_info i2s_info =
 {
 	.lock = __SPIN_LOCK_UNLOCKED(i2s_info.lock),
 	.initialized = 0,
-	.ch_info = 
+	.ch_info =
 	{
 		[0] =
 		{
@@ -379,7 +379,7 @@ static struct snd_soc_dai_ops lpc313x_i2s_dai_ops = {
 		.hw_params = lpc313x_i2s_hw_params,
 		.set_sysclk = lpc313x_i2s_set_dai_sysclk,
 		.set_fmt = lpc313x_i2s_set_dai_fmt,
-		.set_clkdiv = lpc313x_i2s_set_dai_clkdiv,		
+		.set_clkdiv = lpc313x_i2s_set_dai_clkdiv,
 };
 
 struct snd_soc_dai lpc313x_i2s_dai = {

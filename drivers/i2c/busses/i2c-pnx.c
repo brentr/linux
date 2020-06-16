@@ -553,7 +553,7 @@ static int i2c_pnx_controller_resume(struct platform_device *pdev)
 	return i2c_pnx->resume(pdev);
 }
 
-static int __devinit i2c_pnx_probe(struct platform_device *pdev)
+static int i2c_pnx_probe(struct platform_device *pdev)
 {
 	unsigned long tmp;
 	int ret = 0;
@@ -595,8 +595,7 @@ static int __devinit i2c_pnx_probe(struct platform_device *pdev)
 		goto out_drvdata;
 	}
 
-	if (!(alg_data->ioaddr =
-			(u32)ioremap(alg_data->base, I2C_PNX_REGION_SIZE))) {
+	if (!(alg_data->ioaddr = ioremap(alg_data->base, I2C_PNX_REGION_SIZE))) {
 		dev_err(&pdev->dev, "Couldn't ioremap I2C I/O region\n");
 		ret = -ENOMEM;
 		goto out_release;
@@ -659,7 +658,7 @@ out:
 	return ret;
 }
 
-static int __devexit i2c_pnx_remove(struct platform_device *pdev)
+static int i2c_pnx_remove(struct platform_device *pdev)
 {
 	struct i2c_pnx_data *i2c_pnx = platform_get_drvdata(pdev);
 	struct i2c_adapter *adap = i2c_pnx->adapter;
@@ -681,7 +680,7 @@ static struct platform_driver i2c_pnx_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = i2c_pnx_probe,
-	.remove = __devexit_p(i2c_pnx_remove),
+	.remove = i2c_pnx_remove,
 	.suspend = i2c_pnx_controller_suspend,
 	.resume = i2c_pnx_controller_resume,
 };

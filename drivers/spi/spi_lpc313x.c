@@ -29,6 +29,7 @@
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
@@ -39,7 +40,7 @@
 #include <linux/io.h>
 #include <linux/dma-mapping.h>
 
-#include <mach/registers.h>
+#include <mach/cgu.h>
 #include <mach/dma.h>
 #include <mach/board.h>
 
@@ -497,7 +498,7 @@ static void lpc313x_work_one(struct lpc313xspi *spidat, struct spi_message *m)
 		/* Setup the appropriate chip select */
 		lpc313x_set_cs_clock(spidat, spi->chip_select, speed_hz);
 		lpc313x_set_cs_data_bits(spidat, spi->chip_select, bits_per_word);
- 
+
 		/* Setup timing and levels before initial chip select */
 		tmp = spi_readl(SLV_SET2_REG(0)) & ~(SPI_SLV2_SPO | SPI_SLV2_SPH);
 		if (spidat->psppcfg->spics_cfg[spi->chip_select].spi_spo != 0)
@@ -873,10 +874,11 @@ errout:
 	return ret;
 }
 
+#if 0
 /*
  * SPI driver removal
  */
-static int __devexit lpc313x_spi_remove(struct platform_device *pdev)
+static int lpc313x_spi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = spi_master_get(platform_get_drvdata(pdev));
 	struct lpc313xspi *spidat = spi_master_get_devdata(master);
@@ -904,6 +906,7 @@ static int __devexit lpc313x_spi_remove(struct platform_device *pdev)
 
 	return 0;
 }
+#endif
 
 /**
  * Suspend SPI by switching off the IP clocks
@@ -939,9 +942,9 @@ static int lpc313x_spi_resume(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver lpc313x_spi_driver = {
+static struct platform_driver lpc313x_spi_driver __refdata = {
 	.probe		= lpc313x_spi_probe,
-	.remove		= __devexit_p(lpc313x_spi_remove),
+//	.remove		= lpc313x_spi_remove,
 	.suspend    = lpc313x_spi_suspend,
 	.resume     = lpc313x_spi_resume,
 	.driver		= {

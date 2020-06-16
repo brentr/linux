@@ -31,6 +31,8 @@
 #include <linux/io.h>
 #include <asm/cacheflush.h>
 
+#include "mach/hardware.h"
+
 
 #define LPC313x_ISRAM_VA io_p2v(ISRAM0_PHYS)
 
@@ -86,7 +88,7 @@ static void lpc313x_clk_debug(void)
 	 */
 	for ( i = 0; i < CGU_SB_NR_CLK; i++) {
 		clk_pcr = CGU_SB->clk_pcr[i];
-		if ( (clk_pcr & CGU_SB_PCR_RUN) && 
+		if ( (clk_pcr & CGU_SB_PCR_RUN) &&
 			((clk_pcr & CGU_SB_PCR_WAKE_EN) == 0) )
 			printk("Opps Clk: %d is still enabled\n", i);
 	}
@@ -126,7 +128,7 @@ static int lpc313x_enter_sleep(u32 standby)
 				CGU_SB->base_scr[i] |= CGU_SB_SCR_STOP;
 		}
 	} else {
-		/* we need to have interrupt controller clock on for 
+		/* we need to have interrupt controller clock on for
 		 * internal events to wake us up.
 		 */
 		CGU_SB->clk_pcr[CGU_SB_INTC_CLK_ID] = CGU_SB_PCR_RUN;
@@ -246,8 +248,8 @@ static void lpc313x_pm_end(void)
 
 /*
  * Call this from platform driver suspend() to see how deeply to suspend.
- * For internal events to wake the chip we should not stop the module 
- * clocks. 
+ * For internal events to wake the chip we should not stop the module
+ * clocks.
  */
 int lpc313x_entering_suspend_mem(void)
 {

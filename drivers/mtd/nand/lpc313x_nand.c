@@ -43,6 +43,8 @@
 #include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
 
+#include "../mtdcore.h"  //for this driver lifted from 2.6.33 !
+
 #include <asm/io.h>
 
 #include <mach/irqs.h>
@@ -753,63 +755,6 @@ static int lpc313x_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat, u
 }
 
 /*
- * Verify a buffer written to hardware against the passed buffer (callback)
- */
-static int lpc313x_nand_verify_hwecc(struct mtd_info *mtd, const uint8_t *buf, int len)
-{
-	struct nand_chip *chip = mtd->priv;
-	struct lpc313x_nand_mtd *nmtd;
-	struct lpc313x_nand_info *host;
-	int i, status = 0, curbuf = 0, bufrdy = -1;
-
-	nmtd = chip->priv;
-	host = nmtd->host;
-
-	/* Read back the data stored in the hardware and check it against the buffer */
-	for (i = 0; i < len; i += chip->ecc.size) {
-		/* Clear all current statuses */
-		lpc313x_nand_int_clear(~0);
-
-		/* Start read into RAM0 or RAM1 */
-#if !defined(STATUS_POLLING)
-		host->intspending = 0;
-#endif
-		lpc313x_ram_read(curbuf);
-
-		/* Compare current buffer while next buffer is loading */
-		if (bufrdy >= 0) {
-			if (memcmp(buf, nand_buff_addr[bufrdy], chip->ecc.size) != 0) {
-				status = -EIO;
-			}
-
-			buf += chip->ecc.size;
-		}
-
-#if defined(STATUS_POLLING)
-		/* Polling for buffer loaded and decoded */
-		while (!((nand_readl(IRQSTATUSRAW1)) & nand_buff_dec_mask[curbuf]));
-
-#else
-		/* Interrupt based wait operation */
-		lpc313x_wait_irq(host);
-#endif
-
-		bufrdy = curbuf;
-		curbuf = 1 - curbuf;
-	}
-
-	/* Compare against buffer */
-	if (memcmp(buf, nand_buff_addr[bufrdy], chip->ecc.size) != 0) {
-		status = -EIO;
-	}
-
-	/* Disable all interrupts */
-	lpc313x_nand_int_dis(~0);
-
-	return status;
-}
-
-/*
  * 8-bit direct NAND interface read callback
  */
 static void lpc313x_nand_read_buf8(struct mtd_info *mtd, u_char *buf, int len) {
@@ -852,8 +797,8 @@ static void lpc313x_nand_write_buf16(struct mtd_info *mtd, const u_char *buf,
 /*
  * Read the payload and OOB data from the device in the hardware storage format
  */
-static int lpc313x_nand_read_page_syndrome(struct mtd_info *mtd, struct nand_chip *chip,
-				   uint8_t *buf)
+static int lpc313x_nand_read_page(struct mtd_info *mtd,
+						struct nand_chip *chip, uint8_t *buf, int oob_required, int page)
 {
 	int i, curbuf = 0, bufrdy = -1, eccsize = chip->ecc.size;
 	int eccbytes = chip->ecc.bytes;
@@ -968,15 +913,15 @@ static int lpc313x_nand_read_page_syndrome(struct mtd_info *mtd, struct nand_chi
 /*
  * Read the OOB data from the device in the hardware storage format
  */
-static int lpc313x_nand_read_oob_syndrome(struct mtd_info *mtd, struct nand_chip *chip,
-				  int page, int sndcmd)
+static int lpc313x_nand_read_oob(struct mtd_info *mtd,
+										struct nand_chip *chip, int page)
 {
 	uint8_t *buf = chip->oob_poi;
 	int length = mtd->oobsize;
 	int chunk = chip->ecc.bytes + chip->ecc.prepad + chip->ecc.postpad;
 	int eccsize = chip->ecc.size, eccsteps = chip->ecc.steps;
 	uint8_t *bufpoi = buf;
-	int i, toread, sndrnd = sndcmd, pos;
+	int i, toread, pos, sndrnd = 1;
 
 	chip->cmdfunc(mtd, NAND_CMD_READ0, chip->ecc.size, page);
 	for (i = eccsteps; i > 0; i--) {
@@ -999,14 +944,15 @@ static int lpc313x_nand_read_oob_syndrome(struct mtd_info *mtd, struct nand_chip
 	if (length > 0)
 		chip->read_buf(mtd, bufpoi, length);
 
-	return 1;
+	return 0;
 }
 
 /*
  * Write the payload and OOB data to the device in the hardware storage format
  */
-static void lpc313x_nand_write_page_syndrome(struct mtd_info *mtd,
-				    struct nand_chip *chip, const uint8_t *buf)
+static int lpc313x_nand_write_page(struct mtd_info *mtd,
+			struct nand_chip *chip,
+			const uint8_t *buf, int oob_required)
 {
 	int i, curbuf = 0, bufrdy = 0, eccsize = chip->ecc.size;
 	int eccbytes = chip->ecc.bytes;
@@ -1129,12 +1075,13 @@ static void lpc313x_nand_write_page_syndrome(struct mtd_info *mtd,
 
 	/* Disable all interrupts */
 	lpc313x_nand_int_dis(~0);
+	return 0;
 }
 
 /*
  * Write the OOB data to the device in the hardware storage format
  */
-static int lpc313x_nand_write_oob_syndrome(struct mtd_info *mtd,
+static int lpc313x_nand_write_oob(struct mtd_info *mtd,
 				   struct nand_chip *chip, int page)
 {
 	int chunk = chip->ecc.bytes + chip->ecc.prepad + chip->ecc.postpad;
@@ -1187,7 +1134,7 @@ static int lpc313x_nand_add_partition(struct lpc313x_nand_info *host,
 {
 	struct mtd_info *mtd = &bmtd->mtd;
 
-#ifdef CONFIG_MTD_PARTITIONS
+#if 1  //def CONFIG_MTD_PARTITIONS
 	struct mtd_partition *partitions = NULL;
 	int num_partitions = 0;
 
@@ -1221,7 +1168,7 @@ static int lpc313x_nand_add_partition(struct lpc313x_nand_info *host,
 }
 
 /*
- * Init a single instance of an chip
+ * Init a single instance of a chip
  */
 static void lpc313x_nand_init_chip(struct lpc313x_nand_info *host,
 				struct lpc313x_nand_mtd *nmtd) {
@@ -1250,17 +1197,17 @@ static void lpc313x_nand_init_chip(struct lpc313x_nand_info *host,
 	nmtd->mtd.owner = THIS_MODULE;
 
 	chip->ecc.mode = NAND_ECC_HW_SYNDROME;
-	chip->ecc.read_page_raw = lpc313x_nand_read_page_syndrome;
-	chip->ecc.read_page = lpc313x_nand_read_page_syndrome;
-	chip->ecc.write_page = lpc313x_nand_write_page_syndrome;
-	chip->ecc.write_oob = lpc313x_nand_write_oob_syndrome;
-	chip->ecc.read_oob = lpc313x_nand_read_oob_syndrome;
+	chip->ecc.strength = 5;
+	chip->ecc.read_page_raw = chip->ecc.read_page = lpc313x_nand_read_page;
+	chip->ecc.write_page = lpc313x_nand_write_page;
+	chip->ecc.write_oob = lpc313x_nand_write_oob;
+
+	chip->ecc.read_oob_raw = chip->ecc.read_oob = lpc313x_nand_read_oob;
 	chip->ecc.calculate = lpc313x_nand_calculate_ecc;
 	chip->ecc.correct   = lpc313x_nand_correct_data;
 	chip->ecc.hwctl = lpc313x_nand_enable_hwecc;
 
-	chip->verify_buf = lpc313x_nand_verify_hwecc;
-	chip->options |= NAND_USE_FLASH_BBT;
+	chip->options |= NAND_BBT_USE_FLASH;
 	if (host->platform->support_16bit) {
 		chip->options |= NAND_BUSWIDTH_16;
 	}
@@ -1434,7 +1381,7 @@ static int lpc313x_nand_probe(struct platform_device *pdev) {
 		lpc313x_nand_init_chip(host, &host->mtds[i]);
 
 		/* Scan NAND flash device */
-		scan_res = nand_scan_ident(&host->mtds[i].mtd, 1);
+		scan_res = nand_scan_ident(&host->mtds[i].mtd, 1, NULL);
 
 		/* Continue if a device is found */
 		if (scan_res == 0) {

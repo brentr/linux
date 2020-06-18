@@ -145,12 +145,6 @@ static struct map_desc lpc313x_io_desc[] __initdata = {
 		.type		= MT_DEVICE
 	},
 	{
-		.virtual	= io_p2v(IO_DMA_REG_PHYS),
-		.pfn		= __phys_to_pfn(IO_DMA_REG_PHYS),
-		.length		= IO_DMA_REG_SIZE,
-		.type		= MT_DEVICE
-	},
-	{
 		.virtual	= io_p2v(IO_MPMC_CFG_PHYS),
 		.pfn		= __phys_to_pfn(IO_MPMC_CFG_PHYS),
 		.length		= IO_MPMC_CFG_SIZE,
@@ -247,8 +241,8 @@ static int __init lpc313x_init_console(void)
 	mul = (UART_FDR_REG >> 4) & 0xF;
 	div = UART_FDR_REG & 0xF;
 	if (div != 0)  {
-		up.uartclk = (XTAL_CLOCK * mul) / (mul + div); 
-	} 
+		up.uartclk = (XTAL_CLOCK * mul) / (mul + div);
+	}
 	up.regshift = 2;
 	up.iotype = UPIO_MEM;
 	up.type	= PORT_NXP16750;

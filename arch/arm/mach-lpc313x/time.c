@@ -30,11 +30,9 @@
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
 
-
 #include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-
 #include <asm/mach/time.h>
 #include <mach/gpio.h>
 #include <mach/board.h>
@@ -50,7 +48,7 @@ struct lpc313x_timer {
 	/* irq number */
 	int irq;
 
-	char *descr;
+	const char *descr;
 
 	/* timer reserved for static use */
 	unsigned reserved:1;
@@ -63,15 +61,15 @@ struct lpc313x_timer {
 #define TIMER_IO_SIZE (SZ_1K)
 
 struct lpc313x_timer timers[] = {
-	{.phys_base = TIMER0_PHYS, .clk_id = CGU_SB_TIMER0_PCLK_ID, .irq = IRQ_TIMER0 },
-	{.phys_base = TIMER1_PHYS, .clk_id = CGU_SB_TIMER1_PCLK_ID, .irq = IRQ_TIMER1 },
-	{.phys_base = TIMER2_PHYS, .clk_id = CGU_SB_TIMER2_PCLK_ID, .irq = IRQ_TIMER2 },
-	{.phys_base = TIMER3_PHYS, .clk_id = CGU_SB_TIMER3_PCLK_ID, .irq = IRQ_TIMER3 },
+	{.phys_base=TIMER0_PHYS, .clk_id=CGU_SB_TIMER0_PCLK_ID, .irq=IRQ_TIMER0},
+	{.phys_base=TIMER1_PHYS, .clk_id=CGU_SB_TIMER1_PCLK_ID, .irq=IRQ_TIMER1},
+	{.phys_base=TIMER2_PHYS, .clk_id=CGU_SB_TIMER2_PCLK_ID, .irq=IRQ_TIMER2},
+	{.phys_base=TIMER3_PHYS, .clk_id=CGU_SB_TIMER3_PCLK_ID, .irq=IRQ_TIMER3},
 };
 
 #define NUM_TIMERS (sizeof(timers)/sizeof(struct lpc313x_timer))
 
-void lpc313x_generic_timer_init(void)
+void __init lpc313x_generic_timer_init(void)
 {
 	int i;
 	for(i = 0; i < NUM_TIMERS; i++) {
@@ -97,28 +95,25 @@ void lpc313x_generic_timer_init(void)
 	}
 }
 
-struct lpc313x_timer *lpc313x_generic_timer_request(char *descr)
+struct lpc313x_timer *lpc313x_generic_timer_request(const char *descr)
 {
-	int i;
-	struct lpc313x_timer *t = NULL;
-	for(i = 0; i < NUM_TIMERS; i++) {
-		t = &timers[i];
+	struct lpc313x_timer *t = timers;
+	struct lpc313x_timer *end = timers + ARRAY_SIZE(timers);
+	while (t < end) {
+		if(!t->used) {
+		  /* enable the clock of the timer */
+		  cgu_clk_en_dis(t->clk_id, 1);
 
-		if(t->used)
-			continue;
+		  /* mark the timer as used */
+		  t->used = 1;
 
-		/* enable the clock of the timer */
-		cgu_clk_en_dis(t->clk_id, 1);
-
-		/* mark the timer as used */
-		t->used = 1;
-
-		/* attach description */
-		t->descr = descr;
-
-		break;
+		  /* attach description */
+		  t->descr = descr;
+		  return t;
+		}
+		t++;
 	}
-	return t;
+	return NULL;
 }
 
 void lpc313x_generic_timer_free(struct lpc313x_timer *t)
@@ -261,17 +256,14 @@ void lpc313x_timer_init_debugfs(void)
 void lpc313x_timer_init_debugfs(void) {}
 #endif
 
-#define clkHz (6000000) //lpc313x_generic_timer_get_infreq(t);
+#define clkHz (6000000) //6Mhz -- lpc313x_generic_timer_get_infreq(t);
 
 
 /* Continuous timer counter */
 
-static struct lpc313x_timer *clksource_timer;
-
 static cycle_t clksource_read_cycles(struct clocksource *cs)
 {
-	u32 c = 0xffffffff - lpc313x_generic_timer_get_value(clksource_timer);
-	return (cycle_t)(c);
+	return (cycle_t)(~0 - lpc313x_generic_timer_get_value(cs->archdata.timer));
 }
 
 static struct clocksource clksource = {
@@ -280,7 +272,7 @@ static struct clocksource clksource = {
 	.read		= clksource_read_cycles,
 	.mask		= CLOCKSOURCE_MASK(32),
 	.shift		= 20,
-	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
+	.flags		= CLOCK_SOURCE_IS_CONTINUOUS
 };
 
 static void __init lpc313x_clocksource_init(void)
@@ -290,7 +282,7 @@ static void __init lpc313x_clocksource_init(void)
 		printk(KERN_ERR
 		  "%s: failed to request timer\n", clksource.name);
 
-	clksource_timer = t;
+	clksource.archdata.timer = t;
 	clksource.mult = clocksource_hz2mult(clkHz, clksource.shift);
 	lpc313x_generic_timer_continuous(t);
 
@@ -307,24 +299,23 @@ static int clkevent_set_next_event(unsigned long cycles,
 				   struct clock_event_device *evt)
 {
 	lpc313x_generic_timer_oneshot(clkevent_timer, cycles);
-
 	return 0;
 }
 
 static void clkevent_set_mode(enum clock_event_mode mode,
 			      struct clock_event_device *evt)
 {
-	lpc313x_generic_timer_stop(clkevent_timer);
-
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
 		lpc313x_generic_timer_periodic(clkevent_timer, clkHz);
 		break;
-	case CLOCK_EVT_MODE_ONESHOT:
-		break;
-	case CLOCK_EVT_MODE_UNUSED:
 	case CLOCK_EVT_MODE_SHUTDOWN:
+	case CLOCK_EVT_MODE_ONESHOT:
+		lpc313x_generic_timer_stop(clkevent_timer);
+		break;
 	case CLOCK_EVT_MODE_RESUME:
+		lpc313x_generic_timer_continue(clkevent_timer);
+	case CLOCK_EVT_MODE_UNUSED:
 		break;
 	}
 }
@@ -349,9 +340,7 @@ static irqreturn_t clkevent_interrupt(int irq, void *dev_id)
 		t->oneshot = 0;
 		lpc313x_generic_timer_stop(t);
 	}
-
 	evt->event_handler(evt);
-
 	return IRQ_HANDLED;
 }
 
@@ -369,14 +358,13 @@ static void __init lpc313x_clockevents_init(void)
 		printk(KERN_ERR
 		  "%s: failed to request timer\n", clkevent.name);
 
-	clkevent_timer = t;
-	clkevent_irq.dev_id = (void *)clkevent_timer;
+	clkevent_irq.dev_id = (void *)(clkevent_timer = t);
 	setup_irq(lpc313x_generic_timer_get_irq(t), &clkevent_irq);
 	clkevent.mult = div_sc(clkHz, NSEC_PER_SEC, clkevent.shift);
 	clkevent.cpumask = cpumask_of(0);
 
 	/* Setup the clockevent structure. */
-	clockevents_config_and_register(&clkevent, clkHz, 60, -1);
+	clockevents_config_and_register(&clkevent, clkHz, 60, (u32)~0);
 }
 
 

@@ -726,11 +726,26 @@ static int lpc313x_mci_get_cd(struct mmc_host *mmc)
 	return present;
 }
 
+static void lpc313x_mci_enable_sdio_irq(struct mmc_host *host, int enable)
+{
+	unsigned int reg;
+
+	if (enable) {
+		reg = mci_readl(INTMASK) | SDMMC_INT_SDIO;
+		mci_writel(INTMASK, reg);
+	}
+	else {
+		reg = mci_readl(INTMASK) & ~SDMMC_INT_SDIO;
+		mci_writel(INTMASK, reg);
+	}
+}
+
 static const struct mmc_host_ops lpc313x_mci_ops = {
 	.request	= lpc313x_mci_request,
 	.set_ios	= lpc313x_mci_set_ios,
 	.get_ro		= lpc313x_mci_get_ro,
 	.get_cd		= lpc313x_mci_get_cd,
+	.enable_sdio_irq= lpc313x_mci_enable_sdio_irq,
 };
 
 static void lpc313x_mci_request_end(struct lpc313x_mci *host, struct mmc_request *mrq)
@@ -1171,6 +1186,11 @@ static irqreturn_t lpc313x_mci_interrupt(int irq, void *dev_id)
 		    mci_writel(RINTSTS,SDMMC_INT_CMD_DONE);  //  clear interrupt
 		    lpc313x_mci_cmd_interrupt(host, status);
 		}
+
+		if (pending & SDMMC_INT_SDIO) {
+		    mci_writel(RINTSTS,SDMMC_INT_SDIO);  //  clear interrupt
+		    mmc_signal_sdio_irq(host->cur_slot->mmc);
+		}
 	} while (pass_count++ < 5);
 
 	spin_unlock(&host->lock);
@@ -1329,7 +1349,7 @@ lpc313x_mci_init_slot(struct lpc313x_mci *host, unsigned int id)
 	if (host->pdata->setpower)
 		host->pdata->setpower(id, 0);
 
-	mmc->caps = 0;
+	mmc->caps = MMC_CAP_SDIO_IRQ;
 	if (host->pdata->get_bus_wd)
 		if (host->pdata->get_bus_wd(slot->id) >= 4)
 			mmc->caps |= MMC_CAP_4_BIT_DATA;

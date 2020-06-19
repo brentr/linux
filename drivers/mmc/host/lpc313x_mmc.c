@@ -288,7 +288,7 @@ static void lpc313x_mci_set_timeout(struct lpc313x_mci *host,
 	/* the standard response timeout value (Ncr) is 64 clocks.
 	 * Let give 4 additional clocks for response.
 	 */
-	mci_writel(TMOUT, /*0xffffffff); */ (timeout << 8) | (70));
+	mci_writel(TMOUT, (timeout << 8) | (70));
 }
 
 static u32 lpc313x_mci_prepare_command(struct mmc_host *mmc,

@@ -36,6 +36,7 @@
 #define GPIO_PHYS         (0x13003000)
 #define CGU_SB_PHYS       (0x13004000)
 #define CGU_CFG_PHYS      (0x13004c00)
+#define RNG_PHYS          (0x13006000)
 #define TIMER0_PHYS       (0x13008000)
 #define TIMER1_PHYS       (0x13008400)
 #define TIMER2_PHYS       (0x13008800)

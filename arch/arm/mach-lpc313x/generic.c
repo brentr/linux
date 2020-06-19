@@ -108,9 +108,30 @@ static struct platform_device serial_device = {
 	},
 };
 
+#if defined(CONFIG_HW_RANDOM_LPC313X) || defined(CONFIG_HW_RANDOM_LPC313X_MODULE)
+
+static struct resource rng_resources[] = {
+	{
+		.start = RNG_PHYS,
+		.end   = RNG_PHYS + 4096,
+		.flags = IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device rng_device = {
+	.name = "lpc313x-rng",
+	.id   = -1,
+	.num_resources = ARRAY_SIZE(rng_resources),
+	.resource = rng_resources,
+};
+
+#endif
 
 static struct platform_device *devices[] __initdata = {
 	&serial_device,
+#if defined(CONFIG_HW_RANDOM_LPC313X) || defined(CONFIG_HW_RANDOM_LPC313X_MODULE)
+	&rng_device,
+#endif
 };
 
 static struct map_desc lpc313x_io_desc[] __initdata = {

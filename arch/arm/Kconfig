@@ -610,11 +610,11 @@ config ARCH_W90X900
 config ARCH_LPC313X
        bool "NXP LPC313X series"
 	select ARCH_REQUIRE_GPIOLIB
+        select ARCH_CLOCKSOURCE_DATA
 	select GENERIC_GPIO
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select CPU_ARM926T
-	select HAVE_IDE
         select IRQ_DOMAIN
        help
          Say Y here for systems based on one of the NXP LPC313x & LPC315x

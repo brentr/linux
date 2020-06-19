@@ -110,7 +110,7 @@ static void spi_set_cs_state(int cs_num, int state)
 	(void) cs_num;
 
 	/* Set GPO state for CS0 */
-	lpc313x_gpio_set_value(GPIO_SPI_CS_OUT0, state);
+	gpio_set_value(GPIO_SPI_CS_OUT0, state);
 }
 
 struct lpc313x_spics_cfg lpc313x_stdspics_cfg[] =

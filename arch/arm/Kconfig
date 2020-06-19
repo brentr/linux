@@ -596,6 +596,8 @@ config ARCH_W90X900
 	select CLKSRC_MMIO
 	select CPU_ARM926T
 	select GENERIC_CLOCKEVENTS
+	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
 	help
 	  Support for Nuvoton (Winbond logic dept.) ARM9 processor,
 	  At present, the w90x900 has been renamed nuc900, regarding
@@ -608,12 +610,11 @@ config ARCH_W90X900
 config ARCH_LPC313X
        bool "NXP LPC313X series"
 	select ARCH_REQUIRE_GPIOLIB
+	select GENERIC_GPIO
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
-	select ARM_AMBA
 	select CPU_ARM926T
 	select HAVE_IDE
-	select HAVE_PWM
         select IRQ_DOMAIN
        help
          Say Y here for systems based on one of the NXP LPC313x & LPC315x

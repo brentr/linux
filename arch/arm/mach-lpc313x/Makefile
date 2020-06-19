@@ -4,7 +4,7 @@
 
 # Object file lists.
 
-obj-y			+= irq.o time.o cgu.o generic.o i2c.o gpio.o dma.o usb.o wdt.o
+obj-y			+= irq.o time.o cgu.o generic.o i2c.o dma.o usb.o wdt.o
 
 
 # Specific board support
@@ -17,6 +17,7 @@ obj-$(CONFIG_MACH_EA3152) += ea313x.o
 obj-$(CONFIG_MACH_VAL3154) += val3154.o
 # leds.o
 obj-$(CONFIG_LPC3152_AD) += psu.o
+obj-$(CONFIG_GPIOLIB) += gpiolib.o
 
 # Power Management
 obj-$(CONFIG_PM)		+= pm.o pm_standby.o

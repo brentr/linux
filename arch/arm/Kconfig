@@ -608,7 +608,8 @@ config ARCH_W90X900
 config ARCH_LPC313X
        bool "NXP LPC313X series"
 	select ARCH_REQUIRE_GPIOLIB
-	select ARCH_USES_GETTIMEOFFSET
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
 	select ARM_AMBA
 	select CPU_ARM926T
 	select HAVE_IDE

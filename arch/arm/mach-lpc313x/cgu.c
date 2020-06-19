@@ -735,6 +735,7 @@ static void lpc313x_cgu_init_debugfs(void) {}
 * Initialize CGU data structure with PLL frequency passed by the boot 
 * loader.
 **********************************************************************/
+void lpc313x_timer_init_debugfs(void);
 int __init cgu_init(char *str)
 {
 	int i, j;
@@ -772,6 +773,9 @@ int __init cgu_init(char *str)
  	printk(/*KERN_INFO*/ "cgu_init pll set at %d\n", g_clkin_freq[6]);
 	
 	lpc313x_cgu_init_debugfs();
+
+	lpc313x_timer_init_debugfs();
+
 
 	return 0;
 }

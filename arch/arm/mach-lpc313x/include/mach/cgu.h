@@ -472,7 +472,9 @@ typedef enum
 #define CGU_WKE_CLKS_32_63 ( _BIT(CGU_SB_IOCONF_PCLK_ID - 32) | _BIT(CGU_SB_CGU_PCLK_ID - 32) | \
                              _BIT(CGU_SB_SYSCREG_PCLK_ID - 32) | \
                              _BIT(CGU_SB_AHB2APB1_ASYNC_PCLK_ID - 32) | _BIT(CGU_SB_AHB2APB2_ASYNC_PCLK_ID - 32) | \
-                             _BIT(CGU_SB_AHB2APB3_ASYNC_PCLK_ID - 32) | _BIT(CGU_SB_TIMER0_PCLK_ID - 32) )
+                             _BIT(CGU_SB_AHB2APB3_ASYNC_PCLK_ID - 32) | _BIT(CGU_SB_TIMER0_PCLK_ID - 32) | \
+			     _BIT(CGU_SB_TIMER1_PCLK_ID - 32) | _BIT(CGU_SB_TIMER2_PCLK_ID - 32) | \
+			     _BIT(CGU_SB_TIMER3_PCLK_ID - 32) )
 
 
 #define CGU_WKE_CLKS_64_92 ( 0 )
@@ -622,7 +624,11 @@ static inline void cgu_soft_reset_module(CGU_MOD_ID_T modId)
 
   CGU_CFG->resetn_soft[modId] = CGU_CONFIG_SOFT_RESET;
 }
-
+/* enable / disable the requested clock in CGU */
+static inline int cgu_clk_is_enabled(CGU_CLOCK_ID_T clkid)
+{
+	return (CGU_SB->clk_pcr[clkid] | CGU_SB_PCR_RUN) ? 1 : 0;
+}
 
 /***********************************************************************
 * Enable/Disable frequency input to the selected base

@@ -273,6 +273,8 @@ void lpc313x_vbus_power(int enable)
 		gpio_set_value(GPIO_I2SRX_DATA0, 0);
 }
 
+EXPORT_SYMBOL(lpc313x_vbus_power);
+
 static void __init val3154_init(void)
 {
 	lpc313x_init();

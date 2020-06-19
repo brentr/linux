@@ -425,15 +425,13 @@ static int mci_get_bus_wd(u32 slot_id)
 
 void lpc313x_vbus_power(int enable)
 {
-	printk(KERN_INFO "%s VBUS power!!!\n", (enable)?"Enabling":"Disabling" );
 	if (enable) 
 		gpio_set_value(GPIO_GPIO18, 0);
 	else
 		gpio_set_value(GPIO_GPIO18, 1);
-
-	udelay(500);
-	udelay(500);
 }
+
+EXPORT_SYMBOL(lpc313x_vbus_power);
 
 
 static void __init val3153_init(void)

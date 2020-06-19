@@ -171,14 +171,16 @@ static void	lpc313x_usb_release(struct device *dev)
 static irqreturn_t lpc313x_vbus_ovrc_irq(int irq, void *data)
 {
 	struct lpc313x_usb_board_t* brd = data;
-	/* disable VBUS power */
-	lpc313x_vbus_power(0);
-	/* Disable over current IRQ */
-	disable_irq_nosync(irq);
-	printk(KERN_INFO "Disabling VBUS as device is drawing too much current!!\n");
-	printk(KERN_INFO "Please disconnect the high-power USB device!!\n");
 
-	/* start the timer to re-enable power to VBUS and IRQ */
+	/* disable power */
+	lpc313x_vbus_power(0);
+
+	/* disable overcurrent irq */
+	disable_irq_nosync(irq);
+
+	printk(KERN_WARNING "disabling bus voltage due to overcurrent!\n");
+
+	/* start the timer for next power up attempt */
 	mod_timer(&brd->vbus_timer, jiffies + msecs_to_jiffies(2000));
 
 	return IRQ_HANDLED;
@@ -187,11 +189,14 @@ static irqreturn_t lpc313x_vbus_ovrc_irq(int irq, void *data)
 static void lpc313x_vbusen_timer(unsigned long data)
 {
 	struct lpc313x_usb_board_t* brd = (struct lpc313x_usb_board_t*)data;
-	/* enable VBUS power */
+
+	/* enable power */
 	lpc313x_vbus_power(1);
-	msleep(2);
-	/* enable the VBUS overcurrent monitoring IRQ */
-	enable_irq(brd->vbus_ovrc_irq);
+
+	/* enable overcurrent irq */
+	if(brd->vbus_ovrc_irq >= 0) {
+		enable_irq(brd->vbus_ovrc_irq);
+	}
 }
 
 
@@ -251,27 +256,33 @@ int __init usbotg_init(void)
 		if ( 0 != retval )
 			printk(KERN_INFO "Can't register lpc313x_ehci_device device\n");
 
-		/* Create VBUS enable timer */
-		setup_timer(&lpc313x_usb_brd.vbus_timer, lpc313x_vbusen_timer,
-				(unsigned long)&lpc313x_usb_brd);
-
 #if defined(CONFIG_MACH_EA313X) || defined(CONFIG_MACH_EA3152)
 		/* set thw I2SRX_WS0 pin as GPIO_IN for vbus overcurrent flag */
 		gpio_direction_input(GPIO_I2SRX_WS0);
 		lpc313x_usb_brd.vbus_ovrc_irq = IRQ_EA_VBUS_OVRC;
 
 #else
+#ifdef IRQ_VBUS_OVRC
 		lpc313x_usb_brd.vbus_ovrc_irq = IRQ_VBUS_OVRC;
+#else
+		lpc313x_usb_brd.vbus_ovrc_irq = -1;
+#endif
 #endif
 
-		/* request IRQ to handle VBUS power event */
-		retval = request_irq( lpc313x_usb_brd.vbus_ovrc_irq, lpc313x_vbus_ovrc_irq, 
-			IRQF_DISABLED, "VBUSOVR", 
-			&lpc313x_usb_brd);
+		/* Create VBUS enable timer */
+		setup_timer(&lpc313x_usb_brd.vbus_timer, lpc313x_vbusen_timer,
+				(unsigned long)&lpc313x_usb_brd);
 
-		if ( 0 != retval )
-			printk(KERN_INFO "Unable to register IRQ_VBUS_OVRC handler\n");
-		
+		/* request overcurrent IRQ  */
+		if(lpc313x_usb_brd.vbus_ovrc_irq >= 0) {
+			retval = request_irq( lpc313x_usb_brd.vbus_ovrc_irq, lpc313x_vbus_ovrc_irq, 
+					      IRQF_DISABLED, "VBUSOVR", 
+					      &lpc313x_usb_brd);
+
+			if ( 0 != retval )
+				printk(KERN_INFO "Unable to register IRQ_VBUS_OVRC handler\n");
+		}
+
 #else
 		printk(KERN_ERR "Unable to register USB host. Check USB_ID jumper!!!!!\n");
 #endif

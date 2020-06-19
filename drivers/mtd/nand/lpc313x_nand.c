@@ -58,20 +58,20 @@
  * */
 #include <mach/dma.h>
 
-/*  Enable DMA transfer for better throughput
+/*  Enable DMA transfer for better throughput (only when EEC is enabled)
  * */
+#ifdef CONFIG_HARDWARE_ECC
 #define USE_DMA
+#define NAND_DMA_MAX_DESC 4  /* Maximum number of DMA descritpors in SG table */
+#define OOB_FREE_OFFSET 4
+#endif
 
-/* Maximum number of DMA descritpors in SG table
- * */
-#define NAND_DMA_MAX_DESC 4
 
 /* Register access macros */
 #define nand_readl(reg)		__raw_readl(&NAND_##reg)
 #define nand_writel(reg,value)	__raw_writel((value),&NAND_##reg)
 #define sys_writel(reg,value)	__raw_writel((value),&SYS_##reg)
 
-#define OOB_FREE_OFFSET 4
 
 /* Enable for polling support only. Polling support will compile the
    code without interrupts during read and write cycles. Device ready
@@ -126,6 +126,7 @@ static const u32 nand_buff_enc_mask[2] = {
 static const u32 nand_buff_wr_mask[2] = {NAND_NANDIRQSTATUS1_WR_RAM0,
 	NAND_NANDIRQSTATUS1_WR_RAM1};
 
+#ifdef CONFIG_HARDWARE_ECC
 /* Decode buffer addresses */
 static const void *nand_buff_addr[2] = {
 	(void *) &NAND_BUFFER_ADRESS, (void *) (&NAND_BUFFER_ADRESS + 256)};
@@ -203,6 +204,17 @@ static struct nand_ecclayout nand_hw_eccoob_128 = {
 };
 #endif
 
+// Dummy bytes for bad block ( just for HARDWARE ECC: inaccurate )
+static uint8_t scan_ff_pattern[] = { 0xff, 0xff };
+
+static struct nand_bbt_descr lpc313x_largepage_flashbased = {
+	.options = NAND_BBT_SCAN2NDPAGE,
+	.offs = 50,
+	.len = 2,
+	.pattern = scan_ff_pattern
+};
+#endif  //CONFIG_HARDWARE_ECC
+
 /*
  *
  * Bad block descriptors for small/large/huge block FLASH
@@ -234,15 +246,6 @@ static struct nand_bbt_descr lpc313x_bbt_mirror_descr = {
 	.pattern = mirror_pattern
 };
 
-// Dummies bytes for bad block ( just for HARDWARE ECC: inaccurate )
-static uint8_t scan_ff_pattern[] = { 0xff, 0xff };
-
-static struct nand_bbt_descr lpc313x_largepage_flashbased = {
-	.options = NAND_BBT_SCAN2NDPAGE,
-	.offs = 50,
-	.len = 2,
-	.pattern = scan_ff_pattern
-};
 
 #ifdef USE_DMA
 /*
@@ -684,6 +687,7 @@ static int lpc313x_nand_devready(struct mtd_info *mtd) {
 	return nand_readl(CHECKSTS) & rdymasks[host->current_cs];
 }
 
+#ifdef CONFIG_HARDWARE_ECC
 /*
  * MTD hardware ECC enable callback
  */
@@ -753,6 +757,7 @@ static int lpc313x_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat, u
 	/* ECC is calculated automatically in hardware, nothing to do */
 	return 0;
 }
+#endif  /* CONFIG_HARDWARE_ECC */
 
 /*
  * 8-bit direct NAND interface read callback
@@ -794,6 +799,8 @@ static void lpc313x_nand_write_buf16(struct mtd_info *mtd, const u_char *buf,
 	__raw_writesw(chip->IO_ADDR_W, buf, len);
 }
 
+
+#ifdef CONFIG_HARDWARE_ECC
 /*
  * Read the payload and OOB data from the device in the hardware storage format
  */
@@ -1125,6 +1132,7 @@ static int lpc313x_nand_write_oob(struct mtd_info *mtd,
 
 	return status & NAND_STATUS_FAIL ? -EIO : 0;
 }
+#endif  /* CONFIG_HARDWARE_ECC */
 
 /*
  * Add MTD partitions and a single MTD device
@@ -1195,7 +1203,9 @@ static void lpc313x_nand_init_chip(struct lpc313x_nand_info *host,
 	nmtd->host = host;
 	nmtd->mtd.priv = chip;
 	nmtd->mtd.owner = THIS_MODULE;
+	chip->options |= NAND_BBT_USE_FLASH;
 
+#ifdef CONFIG_HARDWARE_ECC
 	chip->ecc.mode = NAND_ECC_HW_SYNDROME;
 	chip->ecc.strength = 5;
 	chip->ecc.read_page_raw = chip->ecc.read_page = lpc313x_nand_read_page;
@@ -1207,13 +1217,14 @@ static void lpc313x_nand_init_chip(struct lpc313x_nand_info *host,
 	chip->ecc.correct   = lpc313x_nand_correct_data;
 	chip->ecc.hwctl = lpc313x_nand_enable_hwecc;
 
-	chip->options |= NAND_BBT_USE_FLASH;
+	/* Assume large block FLASH for now, will adjust after detection */
+	chip->ecc.layout = &nand_hw_eccoob_64;
+#else
+	chip->ecc.mode = NAND_ECC_SOFT;
+#endif
 	if (host->platform->support_16bit) {
 		chip->options |= NAND_BUSWIDTH_16;
 	}
-
-	/* Assume large block FLASH for now, will adjust after detection */
-	chip->ecc.layout = &nand_hw_eccoob_64;
 }
 
 /*
@@ -1228,24 +1239,23 @@ static void lpc313x_nand_update_chip(struct lpc313x_nand_info *info,
 	chip->bbt_md = &lpc313x_bbt_mirror_descr;
 
 	/* Select bad block algorithm and ECC layout based on whether
-	   small, large, or hig block FLASH is used */
+	   small, large, or huge block FLASH is used */
+#ifdef CONFIG_HARDWARE_ECC
 	if (chip->page_shift <= 10) {
 		/* Small block FLASH */
 		chip->ecc.layout = &nand_hw_eccoob_16;
 		// FIXME unknown if this works
-	}
+	} else
 #ifdef HUGE_BLOCK_SUPPORT
-	else if (chip->page_shift >= 13) {
+	if (chip->page_shift >= 13) {
 		/* Huge block FLASH */
 		chip->ecc.layout = &nand_hw_eccoob_128;
 		// FIXME bad block descriptors for huge block FLASH not done
-	}
+	} else
 #endif
-	else {
+	{
 		/* Large block FLASH */
 		chip->ecc.layout = &nand_hw_eccoob_64;
-		chip->bbt_td = &lpc313x_bbt_main_descr;
-		chip->bbt_md = &lpc313x_bbt_mirror_descr;
 		chip->badblock_pattern = &lpc313x_largepage_flashbased;
 	}
 
@@ -1253,6 +1263,7 @@ static void lpc313x_nand_update_chip(struct lpc313x_nand_info *info,
 	chip->ecc.size = 512;
 	chip->ecc.bytes = 16;
 	chip->ecc.prepad = 0;
+#endif
 }
 
 /*
@@ -1312,6 +1323,8 @@ static int lpc313x_nand_probe(struct platform_device *pdev) {
 	/* check NAND mux signals */
 	sys_writel(MUX_NAND_MCI, 0);
 
+
+#ifdef CONFIG_HARDWARE_ECC
 	/* Setup NAND configuration */
 	if (plat->support_16bit) {
 		/* 16-bit mode */
@@ -1323,6 +1336,7 @@ static int lpc313x_nand_probe(struct platform_device *pdev) {
 		host->nandconfig = NAND_NANDCONFIG_DC | NAND_NANDCONFIG_ECGC |
 			NAND_NANDCONFIG_EC;
 	}
+#endif
 
 	/* Initialize the hardware */
 	err = lpc313x_nand_inithw(host);

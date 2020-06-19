@@ -6,7 +6,6 @@ config YAFFS_FS
 	tristate "yaffs2 file system support"
 	default n
 	depends on MTD_BLOCK
-#	select YAFFS_YAFFS1
 	select YAFFS_YAFFS2
 	help
 	  yaffs2, or Yet Another Flash File System, is a file system

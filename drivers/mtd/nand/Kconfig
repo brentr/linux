@@ -522,4 +522,12 @@ config MTD_NAND_XWAY
 	  Enables support for NAND Flash chips on Lantiq XWAY SoCs. NAND is attached
 	  to the External Bus Unit (EBU).
 
+config HARDWARE_ECC
+  bool "Use Hardware ECC for LPC313x nand flash controller"
+  depends on MTD_NAND_LPC313X
+  default n
+  help
+      This enables the hardware ECC on Nand Flash controller,
+       Must you disable it for use with the yaffs filesystem?
+
 endif # MTD_NAND

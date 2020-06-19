@@ -465,9 +465,15 @@ static int lpc313x_mci_submit_data_dma(struct lpc313x_mci *host, struct mmc_data
 #endif
 
 			if (trans_len > DMA_MAX_TRANSFERS) {
+#ifdef BURST_DMA
+				trans_len = DMA_MAX_TRANSFERS;
+				length -= (DMA_MAX_TRANSFERS + 1) << 4;
+				mem_addr += ((DMA_MAX_TRANSFERS + 1) << 4);
+#else
 				trans_len = DMA_MAX_TRANSFERS;
 				length -= (DMA_MAX_TRANSFERS + 1) << 2;
 				mem_addr += ((DMA_MAX_TRANSFERS + 1) << 2);
+#endif
 			}
 			else {
 				length = 0;
@@ -966,7 +972,6 @@ inline static void lpc313x_mci_push_data(void *buf,int cnt)
 
     if (cnt % 4 != 0)
 	    printk("error not align 4\n");
-
     cnt = cnt >> 2;
     while (cnt > 0) {
         SDMMC_DATA = *pData++ ;
@@ -1459,11 +1464,20 @@ static int lpc313x_mci_probe(struct platform_device *pdev)
 	CGU_CFG->resetn_soft[SD_MMC_PNRES_SOFT] = CGU_CONFIG_SOFT_RESET;
 
 #ifdef USE_DMA
-	host->dma_chn = dma_request_sg_channel("MCI",  lpc313x_mci_dma_complete, host, 1);
+	host->dma_chn = dma_request_sg_channel("MCI",  lpc313x_mci_dma_complete, host,
+			0, 0, 1);
+	if(host->dma_chn < 0) {
+		dev_err(&pdev->dev, "Failed to allocate DMA SG channel\n");
+		printk(KERN_CRIT "Failed to allocate DMA SG channel\n");
+		ret = host->dma_chn;
+		goto err_freemap;
+	}
+
 	host->sg_cpu = dma_alloc_coherent(&pdev->dev, PAGE_SIZE, &host->sg_dma, GFP_KERNEL);
 	if (host->sg_cpu == NULL) {
 		dev_err(&pdev->dev,
 			 "%s: could not alloc dma memory \n", __func__);
+		ret = -ENOMEM;
 		goto err_freemap;
 	}
 #endif

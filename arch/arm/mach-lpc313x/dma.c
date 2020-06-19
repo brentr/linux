@@ -353,7 +353,8 @@ int dma_current_state (unsigned int   chn,
 	return 0;
 }
 
-int dma_request_sg_channel (char *name, dma_cb_t cb, void *data, int usesoftirq)
+int dma_request_sg_channel (char *name, dma_cb_t cb, void *data,
+		dma_cb_t cb1, void *data1, int usesoftirq)
 {
 	unsigned int chn;
 	unsigned long flags;
@@ -388,6 +389,10 @@ int dma_request_sg_channel (char *name, dma_cb_t cb, void *data, int usesoftirq)
 		dma_channels[sg_higher_channel[chn]].callback_handler = cb;
 		dma_channels[sg_higher_channel[chn]].data = data;
 	}
+	if(cb1) {
+		dma_channels[sg_higher_channel[chn] - 1].callback_handler = cb1;
+		dma_channels[sg_higher_channel[chn] - 1].data = data1;
+	}
 	dma_prog_channel (sg_higher_channel[chn], &dma_setup);
 
 	if (usesoftirq) {
@@ -404,7 +409,8 @@ int dma_request_sg_channel (char *name, dma_cb_t cb, void *data, int usesoftirq)
 	return sg_higher_channel[chn];
 }
 
-int dma_request_specific_sg_channel (int chn, char *name, dma_cb_t cb, void *data, int usesoftirq)
+int dma_request_specific_sg_channel (int chn, char *name, dma_cb_t cb,
+		void *data, dma_cb_t cb1, void *data1, int usesoftirq)
 {
 	unsigned long flags;
 	dma_setup_t  dma_setup;
@@ -431,6 +437,10 @@ int dma_request_specific_sg_channel (int chn, char *name, dma_cb_t cb, void *dat
 	if (cb) {
 		dma_channels[sg_higher_channel[chn]].callback_handler = cb;
 		dma_channels[sg_higher_channel[chn]].data = data;
+	}
+	if(cb1) {
+		dma_channels[sg_higher_channel[chn] - 1].callback_handler = cb1;
+		dma_channels[sg_higher_channel[chn] - 1].data = data1;
 	}
 	dma_prog_channel (sg_higher_channel[chn], &dma_setup);
 

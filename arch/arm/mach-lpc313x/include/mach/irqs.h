@@ -193,4 +193,7 @@
 
 #define NR_IRQS		(NR_IRQ_CPU + NR_IRQ_CHIP_EVT + NR_IRQ_BOARD)
 
+
+#define IRQ_FOR_EVENT(irqnum) (-1)
+
 #endif

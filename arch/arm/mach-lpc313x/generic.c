@@ -42,8 +42,11 @@ static void lpc313x_uart_pm(struct uart_port * port, unsigned int state,
 	switch (state) {
 	case 0:
 		/* Free the pins so that UART IP will take control of it */
-		gpio_free(GPIO_UART_RXD);
-		gpio_free(GPIO_UART_TXD);
+#if 0
+		/* XXX fix this mess */
+		lpc313x_gpio_ip_driven(GPIO_UART_RXD);
+		lpc313x_gpio_ip_driven(GPIO_UART_TXD);
+#endif
 		/*
 		 * Enable the peripheral clock for this serial port.
 		 * This is called on uart_open() or a resume event.
@@ -71,12 +74,11 @@ static void lpc313x_uart_pm(struct uart_port * port, unsigned int state,
 		/* Disable UART base clock */
 		cgu_endis_base_freq(CGU_SB_UARTCLK_BASE_ID, 0);
 
-		/* Free the pins and let GPIO handle it */
-		gpio_request(GPIO_UART_RXD, "uart_rx");
-		gpio_request(GPIO_UART_TXD, "uart_tx");
-
-		gpio_direction_input(GPIO_UART_RXD);
-		gpio_direction_output(GPIO_UART_TXD, 0);
+		/* XXX fix this mess */
+#if 0
+		lpc313x_gpio_direction_input(GPIO_UART_RXD);
+		lpc313x_gpio_set_value(GPIO_UART_TXD, 0);
+#endif
 		break;
 	default:
 		printk(KERN_ERR "lpc313x_uart_pm: unknown pm %d\n", state);
@@ -231,6 +233,8 @@ int __init lpc313x_init(void)
 #endif
 	/* AUDIO CODEC CLOCK (256FS) */
 	GPIO_DRV_IP(IOCONF_I2STX_1, 0x8);
+
+	lpc313x_gpiolib_init();
 
 	return platform_add_devices(devices, ARRAY_SIZE(devices));
 }

@@ -1,6 +1,6 @@
 config SND_LPC313X_SOC
         tristate "SoC Audio for the NXP LPC313X System-on-a-Chip"
-				depends on ARCH_LPC313X && SND_SOC && MACH_EA313X
+				depends on ARCH_LPC313X && SND_SOC && !LPC3152_AD
         help
           Say Y or M if you want to add audio support for the LPC313X.
           You will also need to to select the audio interfaces to
@@ -8,9 +8,9 @@ config SND_LPC313X_SOC
 
 config SND_LPC315X_SOC
 	tristate "SoC Audio for the NXP LPC315X System-on-a-Chip"
-	depends on ARCH_LPC313X && SND_SOC && MACH_EA3152
+	depends on ARCH_LPC313X && SND_SOC && LPC3152_AD
 	help
-	Say Y or M if you want to add audio support for the LPC313X.
+	Say Y or M if you want to add audio support for the LPC315X.
 	You will also need to to select the audio interfaces to
 	support below.
 

@@ -73,9 +73,13 @@ static int mci_init(u32 slot_id, irq_handler_t irqhdlr, void *data)
 	int level;
 
 	/* enable power to the slot */
-	gpio_set_value(GPIO_MI2STX_DATA0, 0);
+	gpio_request(GPIO_MI2STX_DATA0, "MMCpower");
+	gpio_direction_output(GPIO_MI2STX_DATA0, 0);
+	gpio_export(GPIO_MI2STX_DATA0, 0);
 	/* set cd pins as GPIO pins */
+	gpio_request(GPIO_MI2STX_BCK0, "MMCdetect");
 	gpio_direction_input(GPIO_MI2STX_BCK0);
+	gpio_export(GPIO_MI2STX_BCK0, 0);
 
 	/* select the opposite level senstivity */
 	level = mci_get_cd(0)?IRQ_TYPE_LEVEL_LOW:IRQ_TYPE_LEVEL_HIGH;
@@ -248,6 +252,7 @@ static void __init ea_add_device_dm9000(void)
 	SYS_MPMC_WTD_DEL1 = _BIT(5) | 4;
 
 	/* Configure Interrupt pin as input, no pull-up */
+	gpio_request(GPIO_MNAND_RYBN3, "DM9000IRQ");
 	gpio_direction_input(GPIO_MNAND_RYBN3);
 
 	platform_device_register(&dm9000_device);
@@ -366,7 +371,7 @@ static void spi_set_cs_state(int cs_num, int state)
 	(void) cs_num;
 
 	/* Set GPO state for CS0 */
-	gpio_set_value(GPIO_SPI_CS_OUT0, state);
+	gpio_direction_output(GPIO_SPI_CS_OUT0, state);
 }
 
 struct lpc313x_spics_cfg lpc313x_stdspics_cfg[] =
@@ -378,7 +383,7 @@ struct lpc313x_spics_cfg lpc313x_stdspics_cfg[] =
 		.spi_cs_set	= spi_set_cs_state,
 	},
     /* use SPI CS1 only for probing two alternative NOR flash chips */
-	{ 
+	{
 		.spi_spo	= 0, /* Low clock between transfers */
 		.spi_sph	= 0, /* Data capture on first clock edge (high edge with spi_spo=0) */
 		.spi_cs_set	= spi_set_cs_state,
@@ -417,6 +422,7 @@ static int __init lpc313x_spidev_register(void)
 		.chip_select = 0,
 	};
 
+	gpio_request(GPIO_SPI_CS_OUT0, "SPICS0");
 	return spi_register_board_info(&info, 1);
 }
 arch_initcall(lpc313x_spidev_register);

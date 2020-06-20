@@ -176,7 +176,7 @@ static void vbus_off (struct work_struct *work)
 	struct lpc313x_usb_board_t* brd =
     			container_of(work, struct lpc313x_usb_board_t, nextOp.work);
    	/* disable power */
-	printk(KERN_WARNING "USB Overcurrent!\n");
+	printk(KERN_WARNING "LPC31xx USB Overcurrent!\n");
 	lpc313x_vbus_power(0);
 	/* queue next power up attempt */
 	INIT_DELAYED_WORK(&brd->nextOp, vbus_on);
@@ -202,7 +202,7 @@ static irqreturn_t lpc313x_vbus_ovrc_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-   
+
 /*-------------------------------------------------------------------------*/
 int __init usbotg_init(void)
 {
@@ -249,6 +249,7 @@ int __init usbotg_init(void)
 #endif
 	} else {
 #if defined(CONFIG_USB_EHCI_HCD)
+	        USB_DEV_OTGSC &= ~OTGSC_IDPU;  //turn off the pullup if grounded
 		/* enable VBUS power */
 		lpc313x_vbus_power(1);
 		msleep(2);
@@ -259,15 +260,14 @@ int __init usbotg_init(void)
 		if ( 0 != retval )
 			printk(KERN_INFO "Can't register lpc313x_ehci_device device\n");
 
+lpc313x_usb_brd.vbus_ovrc_irq =
 #if defined(CONFIG_MACH_EA313X) || defined(CONFIG_MACH_EA3152)
-		/* set the I2SRX_WS0 pin as GPIO_IN for vbus overcurrent flag */
-		gpio_direction_input(GPIO_I2SRX_WS0);
-		lpc313x_usb_brd.vbus_ovrc_irq = IRQ_EA_VBUS_OVRC;
+		                IRQ_EA_VBUS_OVRC;
 #else
 #ifdef IRQ_VBUS_OVRC
-		lpc313x_usb_brd.vbus_ovrc_irq = IRQ_VBUS_OVRC;
+		                IRQ_VBUS_OVRC;
 #else
-		lpc313x_usb_brd.vbus_ovrc_irq = -1;
+		                -1;
 #endif
 #endif
 

@@ -311,7 +311,3 @@ static int __init lpc313x_init_console(void)
 console_initcall(lpc313x_init_console);
 
 #endif /*CONFIG_SERIAL_8250_CONSOLE*/
-
-
-
-

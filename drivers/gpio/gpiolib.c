@@ -807,7 +807,7 @@ int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 {
 	unsigned long		flags;
 	int			status;
-	const char		*ioname = NULL;
+	const char		*ioname;
 	struct device		*dev;
 	int			offset;
 
@@ -838,6 +838,7 @@ int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 
 	if (!desc->chip->direction_input || !desc->chip->direction_output)
 		direction_may_change = false;
+	ioname = desc->label;  //default value if no name given
 	spin_unlock_irqrestore(&gpio_lock, flags);
 
 	offset = gpio_chip_hwgpio(desc);

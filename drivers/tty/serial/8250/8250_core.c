@@ -3660,6 +3660,8 @@ void serial8250_unregister_port(int line)
 }
 EXPORT_SYMBOL(serial8250_unregister_port);
 
+void awaitPeripheralReset(void);  //wait for peripheral reset pulse to end
+
 static int __init serial8250_init(void)
 {
 	int ret;
@@ -3669,6 +3671,8 @@ static int __init serial8250_init(void)
 	printk(KERN_INFO "Serial: 8250/16550 driver, "
 		"%d ports, IRQ sharing %sabled\n", nr_uarts,
 		share_irqs ? "en" : "dis");
+
+	awaitPeripheralReset();
 
 #ifdef CONFIG_SPARC
 	ret = sunserial_register_minors(&serial8250_reg, UART_NR);

@@ -16,12 +16,13 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-/* Supports:
+/**
+ * Supports:
  * KS8851 16bit MLL chip from Micrel Inc.
  */
 
 /**
- * Revised:  9/16/14 brent@mbari.org
+ * Revised:  6/20/20 brent@mbari.org
  *  Added support for setting MAC address via bootline option
  *  Added support for setting power saving mode
  *  Added support for agressive power saving (energy detect mode)
@@ -57,8 +58,8 @@
 
 #define	DRV_NAME	"ks8851_mll"
 
-#define MAX_RECV_FRAMES	 192  /* in case short frames queued */
-#define MAX_BUF_SIZE		2048
+#define MAX_RECV_FRAMES			192  /* in case short frames queued */
+#define MAX_BUF_SIZE			2048
 #define TX_BUF_SIZE			2000
 #define RX_BUF_SIZE			2000
 
@@ -327,41 +328,28 @@
 #define KS_P1ANLPR			0xEE
 
 #define KS_P1SCLMD			0xF4
-#define P1SCLMD_LEDOFF			(1 << 15)
-#define P1SCLMD_TXIDS			(1 << 14)
-#define P1SCLMD_RESTARTAN		(1 << 13)
-#define P1SCLMD_DISAUTOMDIX		(1 << 10)
-#define P1SCLMD_FORCEMDIX		(1 << 9)
-#define P1SCLMD_AUTONEGEN		(1 << 7)
-#define P1SCLMD_FORCE100		(1 << 6)
-#define P1SCLMD_FORCEFDX		(1 << 5)
-#define P1SCLMD_ADV_FLOW		(1 << 4)
-#define P1SCLMD_ADV_100BT_FDX		(1 << 3)
-#define P1SCLMD_ADV_100BT_HDX		(1 << 2)
-#define P1SCLMD_ADV_10BT_FDX		(1 << 1)
-#define P1SCLMD_ADV_10BT_HDX		(1 << 0)
+#define P1SCLMD_RESULT			(3 << 14)
+#define P1SCLMD_START			(1 << 12)
+#define P1SCLMD_FORCEPASS		(1 << 11)
+#define P1SCLMD_LOOPBACK		(1 << 9)
+#define P1SCLMD_FAULTS			(0x1ff)
 
 #define KS_P1CR				0xF6
-#define P1CR_HP_MDIX			(1 << 15)
-#define P1CR_REV_POL			(1 << 13)
-#define P1CR_OP_100M			(1 << 10)
-#define P1CR_OP_FDX			(1 << 9)
-#define P1CR_OP_MDI			(1 << 7)
-#define P1CR_AN_DONE			(1 << 6)
-#define P1CR_LINK_GOOD			(1 << 5)
-#define P1CR_PNTR_FLOW			(1 << 4)
-#define P1CR_PNTR_100BT_FDX		(1 << 3)
-#define P1CR_PNTR_100BT_HDX		(1 << 2)
-#define P1CR_PNTR_10BT_FDX		(1 << 1)
-#define P1CR_PNTR_10BT_HDX		(1 << 0)
+#define P1CR_LEDOFF			(1 << 15)
+#define P1CR_TXIDS			(1 << 14)
+#define P1CR_RESTARTAN		        (1 << 13)
+#define P1CR_DISAUTOMDIX		(1 << 10)
+#define P1CR_FORCEMDIX		        (1 << 9)
+#define P1CR_AUTONEGEN		        (1 << 7)
+#define P1CR_FORCE100		        (1 << 6)
+#define P1CR_FORCEFDX		        (1 << 5)
+#define P1CR_ADV_FLOW		        (1 << 4)
+#define P1CR_ADV_100BT_FDX		(1 << 3)
+#define P1CR_ADV_100BT_HDX		(1 << 2)
+#define P1CR_ADV_10BT_FDX		(1 << 1)
+#define P1CR_ADV_10BT_HDX		(1 << 0)
 
-/* TX Frame control */
-
-#define TXFR_TXIC			(1 << 15)
-#define TXFR_TXFID_MASK			(0x3f << 0)
-#define TXFR_TXFID_SHIFT		(0)
-
-#define KS_P1SR				0xF8
+#define KS_P1SR			        0xF8
 #define P1SR_HP_MDIX			(1 << 15)
 #define P1SR_REV_POL			(1 << 13)
 #define P1SR_OP_100M			(1 << 10)
@@ -374,6 +362,12 @@
 #define P1SR_PNTR_100BT_HDX		(1 << 2)
 #define P1SR_PNTR_10BT_FDX		(1 << 1)
 #define P1SR_PNTR_10BT_HDX		(1 << 0)
+
+/* TX Frame control */
+
+#define TXFR_TXIC			(1 << 15)
+#define TXFR_TXFID_MASK			(0x3f << 0)
+#define TXFR_TXFID_SHIFT		(0)
 
 #define	ENUM_BUS_NONE			0
 #define	ENUM_BUS_8BIT			1
@@ -389,6 +383,13 @@ static const u16 pmModes[] = {
   PMECR_PM_ENERGY | PMECR_AUTO_WAKE_EN
 };
 static int pmMode = PMECR_PM_POWERSAVE;  /* default to POWERSAVE */
+
+/**
+ * Set the force mode to half duplex, default is full duplex,
+ * because, if the auto-negotiation fails, most switches use half-duplex.
+ */
+static u16 p1cr = 0xff & ~P1CR_FORCEFDX;  /* Port 1 Control Register mask */
+
 
 /**
  * union ks_tx_hdr - tx header data
@@ -970,6 +971,7 @@ static int ks_net_open(struct net_device *netdev)
 	}
 
 	ks_wake(ks);
+	ks_wrreg16(ks, KS_P1CR, p1cr);
 	ks_wrreg16(ks, KS_ISR, 0xffff);
 	ks_enable_int(ks);
 	ks_enable_qmu(ks);
@@ -978,7 +980,7 @@ static int ks_net_open(struct net_device *netdev)
   /* switch to selected power saving mode */
   if (pmMode >= ARRAY_SIZE(pmModes))
     pmMode=0;
-  ks_set_powermode(ks, pmModes[pmMode]);
+	ks_set_powermode(ks, pmModes[pmMode]);
 	netif_dbg(ks, ifup, ks->netdev, "network device up\n");
 	return 0;
 }
@@ -997,7 +999,7 @@ static int ks_net_stop(struct net_device *netdev)
 
 	netif_info(ks, ifdown, netdev, "shutting down\n");
 
-        ks_wake(ks);
+	ks_wake(ks);
 	netif_stop_queue(netdev);
 
 	mutex_lock(&ks->lock);
@@ -1516,21 +1518,9 @@ static void __devinit ks_setup(struct ks_net *ks)
 	ks->rc_rxqcr = RXQCR_CMD_CNTL;
 	ks_wrreg16(ks, KS_RXQCR, ks->rc_rxqcr);
 
-	/**
-	 * set the force mode to half duplex, default is full duplex
-	 *  because if the auto-negotiation fails, most switch uses
-	 *  half-duplex.
-	 */
+	ks_wrreg16(ks, KS_TXCR, TXCR_TXFCE|TXCR_TXPE|TXCR_TXCRC|TXCR_TCGIP);
 
-	w = ks_rdreg16(ks, KS_P1MBCR);
-	w &= ~P1MBCR_FORCE_FDX;
-	ks_wrreg16(ks, KS_P1MBCR, w);
-
-	w = TXCR_TXFCE | TXCR_TXPE | TXCR_TXCRC | TXCR_TCGIP;
-	ks_wrreg16(ks, KS_TXCR, w);
-
-	w = RXCR1_RXFCE | RXCR1_RXBE | RXCR1_RXUE | RXCR1_RXME | RXCR1_RXIPFCC;
-
+	w = RXCR1_RXFCE|RXCR1_RXBE|RXCR1_RXUE|RXCR1_RXME|RXCR1_RXIPFCC;
 	if (ks->promiscuous)         /* bPromiscuous */
 		w |= (RXCR1_RXAE | RXCR1_RXINVF);
 	else if (ks->all_mcast) /* Multicast address passed mode */
@@ -1766,11 +1756,13 @@ module_platform_driver(ks8851_platform_driver);
 MODULE_DESCRIPTION("KS8851 MLL Network driver");
 MODULE_AUTHOR("David Choi <david.choi@micrel.com>");
 MODULE_LICENSE("GPL");
-module_param_named(message, msg_enable, int, 0);
+module_param(p1cr, ushort, 0644);
+MODULE_PARM_DESC(p1cr,
+  "Mask written to Port 1 Control Register (see datasheet p69)");
+module_param_named(message, msg_enable, int, 0644);
 MODULE_PARM_DESC(message, "Message verbosity level (0=none, 31=all)");
 module_param_named(power, pmMode, int, 0644);
-MODULE_PARM_DESC(power, "power management (0=none, 1=saver, 2=agressive)");
+MODULE_PARM_DESC(power, "Power management (0=none, 1=saver, 2=agressive)");
 module_param_string(mac, MACstring, sizeof(MACstring), 0);
 MODULE_PARM_DESC(mac,
- "comma list MAC addresses, one per chip; e.g. 11:67:BC:F1:4:a2,22:...");
-
+ "Comma list MAC addresses, one per chip; e.g. 11:67:BC:F1:4:a2,22:...");

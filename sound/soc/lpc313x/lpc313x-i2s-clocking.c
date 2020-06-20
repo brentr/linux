@@ -356,6 +356,7 @@ u32 lpc313x_main_clk_rate(u32 freq)
 #endif
 	return ret;
 }
+EXPORT_SYMBOL_GPL(lpc313x_main_clk_rate);
 
 /*
  * Set a specific channel's bit clock and word select rates. his applies
@@ -367,4 +368,5 @@ u32 lpc313x_chan_clk_enable(enum i2s_supp_clks chclk, u32 ws_freq, u32 bit_freq)
 	/* Compute and set proper divider */
 	return lpc313x_set_ch_freq(chclk, ws_freq, bit_freq);
 }
-
+EXPORT_SYMBOL_GPL(lpc313x_chan_clk_enable);
+MODULE_LICENSE("GPL");

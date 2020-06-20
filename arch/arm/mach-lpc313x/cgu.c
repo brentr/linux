@@ -787,5 +787,6 @@ EXPORT_SYMBOL(cgu_get_clk_freq);
 EXPORT_SYMBOL(cgu_get_pll_freq);
 EXPORT_SYMBOL(cgu_set_subdomain_freq);
 EXPORT_SYMBOL(cgu_hpll_config);
+EXPORT_SYMBOL(cgu_fdiv_config);
 //EXPORT_SYMBOL(cgu_clk_set_exten);
 

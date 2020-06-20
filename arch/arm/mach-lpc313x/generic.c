@@ -41,12 +41,6 @@ static void lpc313x_uart_pm(struct uart_port * port, unsigned int state,
 {
 	switch (state) {
 	case 0:
-		/* Free the pins so that UART IP will take control of it */
-#if 0
-		/* XXX fix this mess */
-		lpc313x_gpio_ip_driven(GPIO_UART_RXD);
-		lpc313x_gpio_ip_driven(GPIO_UART_TXD);
-#endif
 		/*
 		 * Enable the peripheral clock for this serial port.
 		 * This is called on uart_open() or a resume event.
@@ -73,12 +67,6 @@ static void lpc313x_uart_pm(struct uart_port * port, unsigned int state,
 
 		/* Disable UART base clock */
 		cgu_endis_base_freq(CGU_SB_UARTCLK_BASE_ID, 0);
-
-		/* XXX fix this mess */
-#if 0
-		lpc313x_gpio_direction_input(GPIO_UART_RXD);
-		lpc313x_gpio_set_value(GPIO_UART_TXD, 0);
-#endif
 		break;
 	default:
 		printk(KERN_ERR "lpc313x_uart_pm: unknown pm %d\n", state);
@@ -94,7 +82,8 @@ static struct plat_serial8250_port platform_serial_ports[] = {
 		.uartclk = XTAL_CLOCK,
 		.regshift = 2,
 		.iotype = UPIO_MEM,
-		.flags = UPF_BOOT_AUTOCONF | UPF_BUGGY_UART | UPF_SKIP_TEST,
+		.type	= PORT_NXP16750,
+		.flags = UPF_FIXED_TYPE|UPF_FIXED_PORT | UPF_BUGGY_UART|UPF_SKIP_TEST,
 		.pm = lpc313x_uart_pm,
 	},
 	{
@@ -191,7 +180,36 @@ void __init lpc313x_map_io(void)
 {
 	iotable_init(lpc313x_io_desc, ARRAY_SIZE(lpc313x_io_desc));
 }
+
 extern int __init cgu_init(char *str);
+
+#define GPIO_BOOT0 GPIO_GPIO0
+#define GPIO_BOOT1 GPIO_GPIO1
+#define GPIO_BOOT2 GPIO_GPIO2
+
+static void lpc313x_export_bootsel(void) {
+	/* pre-request and export boot mode selector pins */
+	gpio_export(GPIO_BOOT0, 1);
+	gpio_request(GPIO_BOOT1, "boot1");
+	gpio_direction_input(GPIO_BOOT1);
+	gpio_export(GPIO_BOOT1, 1);
+    //boot2's and 0's direction depends on baseboard type -- init it later..
+}
+
+
+void __init lpc313x_uart_init(void)
+{
+#ifndef CONFIG_SERIAL_8250_CONSOLE
+	int mul, div;
+
+	/* check what FDR bootloader is using */
+	mul = (UART_FDR_REG >> 4) & 0xF;
+	div = UART_FDR_REG & 0xF;
+	if (div != 0)  {
+		platform_serial_ports[0].uartclk = (XTAL_CLOCK * mul) / (mul + div);
+	}
+#endif
+}
 
 int __init lpc313x_init(void)
 {
@@ -234,7 +252,11 @@ int __init lpc313x_init(void)
 	/* AUDIO CODEC CLOCK (256FS) */
 	GPIO_DRV_IP(IOCONF_I2STX_1, 0x8);
 
+	lpc313x_uart_init();
+
 	lpc313x_gpiolib_init();
+
+	lpc313x_export_bootsel();
 
 	return platform_add_devices(devices, ARRAY_SIZE(devices));
 }
@@ -247,10 +269,14 @@ static int __init lpc313x_init_console(void)
 		KERN_ERR "Serial port #%u setup failed\n";
 	struct uart_port up;
 	int mul, div;
+       unsigned bootFDR;
 
-	/* Switch on the UART clocks */
+	/* Switch on the UART clocks and reset it */
 	cgu_clk_en_dis(CGU_SB_UART_APB_CLK_ID, 1);
 	cgu_clk_en_dis(CGU_SB_UART_U_CLK_ID, 1);
+       bootFDR = UART_FDR_REG;
+	cgu_soft_reset_module(UART_SYS_RST_AN_SOFT);
+       UART_FDR_REG = bootFDR;  //restore bootloader's FDR
 
  	/*
 	 * Set up serial port #0. Do not use autodetection; the result is
@@ -262,16 +288,19 @@ static int __init lpc313x_init_console(void)
 	up.mapbase = (unsigned long)UART_PHYS,
 	up.irq = IRQ_UART;
 	up.uartclk = XTAL_CLOCK;
-	/* check what FDR bootloader is using */
-	mul = (UART_FDR_REG >> 4) & 0xF;
-	div = UART_FDR_REG & 0xF;
+
+	/* use bootloader's FDR */
+	mul = (bootFDR >> 4) & 0xF;
+	div = bootFDR & 0xF;
 	if (div != 0)  {
 		up.uartclk = (XTAL_CLOCK * mul) / (mul + div);
 	}
+
 	up.regshift = 2;
 	up.iotype = UPIO_MEM;
 	up.type	= PORT_NXP16750;
-	up.flags = UPF_BOOT_AUTOCONF | UPF_BUGGY_UART | UPF_SKIP_TEST;
+	up.flags = UPF_BOOT_AUTOCONF| UPF_FIXED_TYPE | UPF_FIXED_PORT |
+    			 UPF_BUGGY_UART|UPF_SKIP_TEST;
 	up.line	= 0;
 	platform_serial_ports[0].uartclk = up.uartclk;
 	if (early_serial_setup(&up))

@@ -98,13 +98,13 @@ int usb_choose_configuration(struct usb_device *udev)
 		 * cause us to reject configurations that we should have
 		 * accepted.
 		 */
-
+#ifdef LimitUSBpwr
 		/* Rule out configs that draw too much bus current */
 		if (usb_get_max_power(udev, c) > udev->bus_mA) {
 			insufficient_power++;
 			continue;
 		}
-
+#endif
 		/* When the first config's first interface is one of Microsoft's
 		 * pet nonstandard Ethernet-over-USB protocols, ignore it unless
 		 * this kernel has enabled the necessary host side driver.

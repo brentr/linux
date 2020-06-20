@@ -35,6 +35,31 @@
 
 static IRQ_EVENT_MAP_T irq_2_event[] = BOARD_IRQ_EVENT_MAP;
 
+int __init replace_irq(u32 existingIRQ,
+                        EVENT_T newEvent_pin, EVENT_TYPE_T newType)
+/*
+   hack to replace existing irq to event mapping with that specified in args
+   return 0 if successful,  -1 if irq not found
+   used to adjust irq_2_event[] for slightly differing carrier boards
+   Must be called before lpc313x_init_irq() !!
+*/
+{
+  IRQ_EVENT_MAP_T *cursor = irq_2_event;
+  IRQ_EVENT_MAP_T *end = irq_2_event + NR_IRQ_CPU;
+  while(++cursor < end) {  /* skip unused event 0 */
+    if (cursor->irq == existingIRQ) {
+//printk("irq#%d.event_pin: changing event 0x%02x to 0x%02x\n",
+//        existingIRQ, cursor->event_pin, newEvent_pin);
+      cursor->event_pin = newEvent_pin;
+      cursor->type = newType;
+      return 0;
+    }
+  }
+  printk(KERN_WARNING "replace_irq: no existingIRQ #%d\n", existingIRQ);
+  return -1;
+}
+
+
 static void intc_mask_irq(struct irq_data *d)
 {
 	INTC_REQ_REG(d->hwirq) = INTC_REQ_WE_ENABLE;
@@ -67,7 +92,7 @@ static int intc_set_wake(struct irq_data *d, unsigned value)
 		EVRT_OUT_MASK_CLR(4, EVT_GET_BANK(EVT_arm926_nirq)) = _BIT((EVT_arm926_nirq & 0x1F));
 	}
 
-	//printk("wake on irq=%d value=%d 0x%08x/0x%08x/0x%08x 0x%08x/0x%08x\r\n", irq, value,
+	//printk("wake on irq=%d value=%d 0x%08x/0x%08x/0x%08x 0x%08x/0x%08x\n", irq, value,
 	//	EVRT_MASK(3), EVRT_APR(3), EVRT_ATR(3),
 	//	EVRT_OUT_MASK(4,3), EVRT_OUT_PEND(4,3));
 
@@ -265,11 +290,9 @@ void __init lpc313x_init_irq(void)
 		/* compute bank & bit position for the event_pin */
 		bank = EVT_GET_BANK(irq_2_event[irq - IRQ_EVT_START].event_pin);
 		bit_pos = irq_2_event[irq - IRQ_EVT_START].event_pin & 0x1F;
-
-		printk("irq=%d Event=0x%x bank:%d bit:%d type:%d\r\n", irq,
-			irq_2_event[irq - IRQ_EVT_START].event_pin, bank,
-			bit_pos, irq_2_event[irq - IRQ_EVT_START].type);
-
+//		printk("irq=%d Event=0x%x bank:%d bit:%d type:%d\r\n", irq,
+//			irq_2_event[irq - IRQ_EVT_START].event_pin, bank,
+//			bit_pos, irq_2_event[irq - IRQ_EVT_START].type);
 		irq_set_chip(irq, &lpc313x_evtr_chip);
 		set_irq_flags(irq, IRQF_VALID);
 		mask = _BIT(bit_pos);
@@ -296,9 +319,14 @@ void __init lpc313x_init_irq(void)
 				irq_set_handler(irq, handle_edge_irq);
 				break;
 			default:
-				printk("Invalid Event type.\r\n");
-				break;
+				printk(KERN_WARNING "Invalid Event type.\n");
+                        case EVT_IGNORE:
+				continue;
 		}
+		printk(KERN_INFO "irq=%d Event=0x%x bank:%d bit:%d type:%d\n",
+			irq, irq_2_event[irq - IRQ_EVT_START].event_pin, bank,
+			bit_pos, irq_2_event[irq - IRQ_EVT_START].type);
+
 		if ( (irq >= IRQ_EVTR0_START) && (irq <= IRQ_EVTR0_END) ) {
 			/* enable routing to vector 0 */
 			EVRT_OUT_MASK_SET(0, bank) = mask;
@@ -312,7 +340,7 @@ void __init lpc313x_init_irq(void)
 			/* enable routing to vector 3 */
 			EVRT_OUT_MASK_SET(3, bank) = mask;
 		} else {
-			printk("Invalid Event router setup.\r\n");
+			printk(KERN_WARNING "Invalid Event router setup.\n");
 		}
 	}
 	/* for power management. Wake from internal irqs */

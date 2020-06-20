@@ -163,6 +163,7 @@ typedef enum _EVT_TYPE_
 /* External interrupt type enumerations */
 typedef enum
 {
+  EVT_IGNORE,
   EVT_ACTIVE_LOW,
   EVT_ACTIVE_HIGH,
   EVT_FALLING_EDGE,

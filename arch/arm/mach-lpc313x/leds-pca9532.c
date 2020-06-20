@@ -115,6 +115,10 @@ static int pca9532_configure(struct i2c_client *client,	struct pca9532_data *dat
 /*
  * Handle LED events.
  */
+ 
+int lpc313x_LED = GPIO_GPIO2;
+int lpc313x_USBpower = -1;
+
 static void ea313x_leds_event(led_event_t evt)
 {
 	unsigned long flags;
@@ -125,22 +129,22 @@ static void ea313x_leds_event(led_event_t evt)
 #ifdef CONFIG_LEDS_TIMER
 	case led_timer:		/* Every 50 timer ticks */
 		{
-			unsigned long is_off = gpio_get_value(GPIO_GPIO2);
+			unsigned long is_off = gpio_get_value(lpc313x_LED);
 			if (is_off)
-				gpio_set_value(GPIO_GPIO2, 0);
+				gpio_set_value(lpc313x_LED, 0);
 			else
-				gpio_set_value(GPIO_GPIO2, 1);
+				gpio_set_value(lpc313x_LED, 1);
 		}
 		break;
 #endif
 
 #ifdef CONFIG_LEDS_CPU
 	case led_idle_start:	/* Entering idle state */
-		gpio_set_value(GPIO_GPIO2, 0);
+		gpio_set_value(lpc313x_LED, 0);
 		break;
 
 	case led_idle_end:	/* Exit idle state */
-		gpio_set_value(GPIO_GPIO2, 1);
+		gpio_set_value(lpc313x_LED, 1);
 		break;
 #endif
 
@@ -230,10 +234,16 @@ void lpc313x_vbus_power(int enable)
 {
 	if (enable) {
 		printk (KERN_INFO "enabling USB host vbus_power\n");
-		pca9532_setgpio(VBUS_PWR_EN, PCA9532_LED_ON);
+                if (lpc313x_USBpower < 0)
+		  pca9532_setgpio(VBUS_PWR_EN, PCA9532_LED_ON);
+                else
+                  gpio_set_value(lpc313x_USBpower, 1);
 	} else {
 		printk (KERN_INFO "disabling USB host vbus_power\n");
-		pca9532_setgpio(VBUS_PWR_EN, PCA9532_LED_OFF);
+                if (lpc313x_USBpower < 0)
+		  pca9532_setgpio(VBUS_PWR_EN, PCA9532_LED_OFF);
+                else
+                  gpio_set_value(lpc313x_USBpower, 0);
 	}
 }
 __initcall(pca9532_init);

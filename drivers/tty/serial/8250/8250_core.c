@@ -55,7 +55,8 @@
  */
 static unsigned int share_irqs = SERIAL8250_SHARE_IRQS;
 
-static unsigned int nr_uarts = CONFIG_SERIAL_8250_RUNTIME_UARTS;
+//allow this to be overridden by platform initialization -- brent@mbari.org
+unsigned int nr_uarts = CONFIG_SERIAL_8250_RUNTIME_UARTS;
 
 static struct uart_driver serial8250_reg;
 
@@ -873,7 +874,7 @@ static int broken_efr(struct uart_8250_port *up)
 	/*
 	 * Exar ST16C2550 "A2" devices incorrectly detect as
 	 * having an EFR, and report an ID of 0x0201.  See
-	 * http://linux.derkeiler.com/Mailing-Lists/Kernel/2004-11/4812.html 
+	 * http://linux.derkeiler.com/Mailing-Lists/Kernel/2004-11/4812.html
 	 */
 	if (autoconfig_read_divisor_id(up) == 0x0201 && size_fifo(up) == 16)
 		return 1;
@@ -1228,7 +1229,7 @@ static void autoconfig(struct uart_8250_port *up, unsigned int probeflags)
 	serial_out(up, UART_LCR, save_lcr);
 
 	port->fifosize = uart_config[up->port.type].fifo_size;
-	old_capabilities = up->capabilities; 
+	old_capabilities = up->capabilities;
 	up->capabilities = uart_config[port->type].flags;
 	up->tx_loadsz = uart_config[port->type].tx_loadsz;
 

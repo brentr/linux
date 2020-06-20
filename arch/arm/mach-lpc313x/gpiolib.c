@@ -99,8 +99,8 @@ static struct lpc313x_gpio_pin gpio_pins_gpio[] = {
 		LPC313X_GPIO_PIN("GPIO16", EVT_GPIO16),
 		LPC313X_GPIO_PIN("GPIO17", EVT_GPIO17),
 		LPC313X_GPIO_PIN("GPIO18", EVT_GPIO18),
-		LPC313X_GPIO_PIN("GPIO19", -1 /*EVT_GPIO19*/),
-		LPC313X_GPIO_PIN("GPIO20", -1 /*EVT_GPIO20*/),
+		LPC313X_GPIO_PIN("GPIO19", EVT_GPIO19),
+		LPC313X_GPIO_PIN("GPIO20", EVT_GPIO20),
 };
 
 static struct lpc313x_gpio_pin gpio_pins_ebi_mci[] = {

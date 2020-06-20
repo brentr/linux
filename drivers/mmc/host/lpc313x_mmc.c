@@ -1364,9 +1364,6 @@ lpc313x_mci_init_slot(struct lpc313x_mci *host, unsigned int id)
 	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
 	mmc->max_seg_size = mmc->max_req_size;
 
-	/* call board init */
-	slot->irq = host->pdata->init(id, lpc313x_mci_detect_interrupt, slot);
-	/* Assume card is present initially */
 	if(!host->pdata->get_cd(id))
 		set_bit(LPC313x_MMC_CARD_PRESENT, &slot->flags);
 	else
@@ -1374,7 +1371,6 @@ lpc313x_mci_init_slot(struct lpc313x_mci *host, unsigned int id)
 
 	host->slot[id] = slot;
 	mmc_add_host(mmc);
-
 
 #if defined (CONFIG_DEBUG_FS)
 	lpc313x_mci_init_debugfs(slot);
@@ -1384,6 +1380,8 @@ lpc313x_mci_init_slot(struct lpc313x_mci *host, unsigned int id)
 	setup_timer(&slot->detect_timer, lpc313x_mci_detect_change,
 			(unsigned long)slot);
 
+	/* call board init to enable card detect interrupt */
+	slot->irq = host->pdata->init(id, lpc313x_mci_detect_interrupt, slot);
 	return 0;
 }
 
@@ -1435,7 +1433,7 @@ static int lpc313x_mci_probe(struct platform_device *pdev)
 	}
 
 	if (((pdata->num_slots > 1) && !(pdata->select_slot)) ||
-	     !(pdata->get_ro) || !(pdata->get_cd) || !(pdata->init)) {
+	      !(pdata->get_cd) || !(pdata->init)) {
 		dev_err(&pdev->dev, "Platform data wrong\n");
 		ret = -ENODEV;
 		goto err_freehost;

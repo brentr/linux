@@ -880,7 +880,7 @@ int mmc_sd_setup_card(struct mmc_host *host, struct mmc_card *card,
 		}
 
 		if (ro < 0) {
-			pr_warn("%s: host does not support reading read-only switch, assuming write-enable\n",
+			pr_warning("%s: assuming write-enabled.\n",
 				mmc_hostname(host));
 		} else if (ro > 0) {
 			mmc_card_set_readonly(card);

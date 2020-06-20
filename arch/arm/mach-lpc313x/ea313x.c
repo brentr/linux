@@ -286,8 +286,18 @@ static struct mtd_partition ea313x_nand0_partitions[] = {
 	16M:  Blocks 38  - 165  - Ramdisk image (if used)
 	???:  Blocks 166 - end  - Root filesystem/storage */
 	{
-		.name	= "lpc313x-rootfs",
+		.name	= "lpc313x-std.rootfs",
 		.offset	= (BLK_SIZE * 166),
+		.size	= MTDPART_SIZ_FULL
+	},
+	{
+		.name	= "lpc313x-big.rootfs.",
+		.offset	= (BLK_SIZE * 38),
+		.size	= MTDPART_SIZ_FULL
+	},
+	{
+		.name	= "lpc313x-max.rootfs",
+		.offset	= (BLK_SIZE * 1),
 		.size	= MTDPART_SIZ_FULL
 	},
 };
@@ -362,8 +372,13 @@ static void spi_set_cs_state(int cs_num, int state)
 struct lpc313x_spics_cfg lpc313x_stdspics_cfg[] =
 {
 	/* SPI CS0 */
-	[0] =
 	{
+		.spi_spo	= 0, /* Low clock between transfers */
+		.spi_sph	= 0, /* Data capture on first clock edge (high edge with spi_spo=0) */
+		.spi_cs_set	= spi_set_cs_state,
+	},
+    /* use SPI CS1 only for probing two alternative NOR flash chips */
+	{ 
 		.spi_spo	= 0, /* Low clock between transfers */
 		.spi_sph	= 0, /* Data capture on first clock edge (high edge with spi_spo=0) */
 		.spi_cs_set	= spi_set_cs_state,
@@ -407,22 +422,31 @@ static int __init lpc313x_spidev_register(void)
 arch_initcall(lpc313x_spidev_register);
 #endif
 
-#if defined(CONFIG_MTD_DATAFLASH)
+/*  either one Amtel DataFlash *or* Spansion SPI NOR flash may be loaded */
 /* MTD Data FLASH driver registration */
 static int __init lpc313x_spimtd_register(void)
 {
-	struct spi_board_info info =
-	{
+	struct spi_board_info info[] = {
+#if defined(CONFIG_MTD_DATAFLASH)
+	  {
 		.modalias = "mtd_dataflash",
 		.max_speed_hz = 30000000,
 		.bus_num = 0,
 		.chip_select = 0,
+	  },
+#endif
+#if defined(CONFIG_MTD_M25P80)
+	  {
+		.modalias = "m25p80",
+		.max_speed_hz = 30000000,
+		.bus_num = 0,
+		.chip_select = 1,
+	  }
+#endif
 	};
-
-	return spi_register_board_info(&info, 1);
+	return spi_register_board_info(info, ARRAY_SIZE(info));
 }
 arch_initcall(lpc313x_spimtd_register);
-#endif
 #endif
 
 static struct platform_device *devices[] __initdata = {

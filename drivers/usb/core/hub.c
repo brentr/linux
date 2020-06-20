@@ -2220,6 +2220,7 @@ static int usb_enumerate_device_otg(struct usb_device *udev)
 		}
 	}
 
+#if defined(CONFIG_USB_OTG_WHITELIST)
 	if (!is_targeted(udev)) {
 
 		/* Maybe it can talk to us, though we can't talk to it.
@@ -2233,6 +2234,7 @@ static int usb_enumerate_device_otg(struct usb_device *udev)
 		err = -ENOTSUPP;
 		goto fail;
 	}
+#endif
 #elif defined(CONFIG_USB_OTG_WHITELIST)
 	if (!is_targeted(udev)) {
 

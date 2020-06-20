@@ -1,4 +1,4 @@
-/* x86-specific clocksource additions */
+/* LPC313x-specific clocksource additions */
 
 #ifndef _ASM_LPC313X_CLOCKSOURCE_H
 #define _ASM_LPC313X_CLOCKSOURCE_H

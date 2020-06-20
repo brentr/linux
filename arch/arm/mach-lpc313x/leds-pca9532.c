@@ -134,6 +134,17 @@ static void ea313x_leds_event(led_event_t evt)
 		}
 		break;
 #endif
+
+#ifdef CONFIG_LEDS_CPU
+	case led_idle_start:	/* Entering idle state */
+		gpio_set_value(GPIO_GPIO2, 0);
+		break;
+
+	case led_idle_end:	/* Exit idle state */
+		gpio_set_value(GPIO_GPIO2, 1);
+		break;
+#endif
+
 	default:
 		break;
 	}

@@ -108,14 +108,12 @@ static struct resource lpc313x_usb_resource[] = {
 	}
 };
 
-struct lpc313x_usb_board_t {
-	/* timer for VBUS enable */
-	struct timer_list	vbus_timer;
+static struct lpc313x_usb_board_t {
+	/* next deferred operation */
+	struct delayed_work nextOp;
 	/* board specific over current monitor */
 	int	vbus_ovrc_irq;
-};
-
-static struct lpc313x_usb_board_t lpc313x_usb_brd;
+} lpc313x_usb_brd;
 
 static u64 usb_dmamask = 0xffffffffUL;;
 static void	lpc313x_usb_release(struct device *dev);
@@ -162,6 +160,30 @@ static struct platform_device lpc313x_ehci_device = {
 #endif
 
 
+static void vbus_on (struct work_struct *work)
+{
+	struct lpc313x_usb_board_t* brd =
+    			container_of(work, struct lpc313x_usb_board_t, nextOp.work);
+   	/* restore power */
+	lpc313x_vbus_power(1);
+	/* re-enable overcurrent irq */
+	enable_irq(brd->vbus_ovrc_irq);
+}
+
+
+static void vbus_off (struct work_struct *work)
+{
+	struct lpc313x_usb_board_t* brd =
+    			container_of(work, struct lpc313x_usb_board_t, nextOp.work);
+   	/* disable power */
+	printk(KERN_WARNING "USB Overcurrent!\n");
+	lpc313x_vbus_power(0);
+	/* queue next power up attempt */
+	INIT_DELAYED_WORK(&brd->nextOp, vbus_on);
+	schedule_delayed_work(&brd->nextOp, msecs_to_jiffies(2000));
+}
+
+
 /*-------------------------------------------------------------------------*/
 static void	lpc313x_usb_release(struct device *dev)
 {
@@ -172,34 +194,15 @@ static irqreturn_t lpc313x_vbus_ovrc_irq(int irq, void *data)
 {
 	struct lpc313x_usb_board_t* brd = data;
 
-	/* disable power */
-	lpc313x_vbus_power(0);
-
 	/* disable overcurrent irq */
 	disable_irq_nosync(irq);
 
-	printk(KERN_WARNING "disabling bus voltage due to overcurrent!\n");
-
-	/* start the timer for next power up attempt */
-	mod_timer(&brd->vbus_timer, jiffies + msecs_to_jiffies(2000));
-
+	INIT_WORK(&brd->nextOp.work, vbus_off);
+	schedule_work(&brd->nextOp.work);
 	return IRQ_HANDLED;
 }
 
-static void lpc313x_vbusen_timer(unsigned long data)
-{
-	struct lpc313x_usb_board_t* brd = (struct lpc313x_usb_board_t*)data;
-
-	/* enable power */
-	lpc313x_vbus_power(1);
-
-	/* enable overcurrent irq */
-	if(brd->vbus_ovrc_irq >= 0) {
-		enable_irq(brd->vbus_ovrc_irq);
-	}
-}
-
-
+   
 /*-------------------------------------------------------------------------*/
 int __init usbotg_init(void)
 {
@@ -268,17 +271,13 @@ int __init usbotg_init(void)
 #endif
 #endif
 
-		/* Create VBUS enable timer */
-		setup_timer(&lpc313x_usb_brd.vbus_timer, lpc313x_vbusen_timer,
-				(unsigned long)&lpc313x_usb_brd);
-
 		/* request overcurrent IRQ  */
 		if(lpc313x_usb_brd.vbus_ovrc_irq >= 0) {
 			retval = request_irq( lpc313x_usb_brd.vbus_ovrc_irq, lpc313x_vbus_ovrc_irq,
 					      IRQF_DISABLED, "VBUSOVR",
 					      &lpc313x_usb_brd);
 
-			if ( 0 != retval )
+			if ( retval )
 				printk(KERN_INFO "Unable to register IRQ_VBUS_OVRC handler\n");
 		}
 

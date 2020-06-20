@@ -16,8 +16,14 @@
 #include <linux/usb/otg.h>
 #include <mach/board.h>
 #include <mach/hardware.h>
+#include <linux/moduleparam.h>
 
-static struct platform_driver ehci_lpc_driver;
+static bool power_down_on_suspend = 0;
+module_param(power_down_on_suspend, bool, 0644);
+MODULE_PARM_DESC(power_down_on_suspend, "Cut USB bus power on bus suspend");
+
+static int lpc_ehci_bus_suspend(struct usb_hcd *hcd);
+static int lpc_ehci_bus_resume(struct usb_hcd *hcd);
 
 static int lpc_ehci_init(struct usb_hcd *hcd)
 {
@@ -67,8 +73,8 @@ static const struct hc_driver lpc_ehci_hc_driver = {
 	.hub_status_data	= ehci_hub_status_data,
 	.hub_control		= ehci_hub_control,
 #if defined(CONFIG_PM)
-	.bus_suspend		= ehci_bus_suspend,
-	.bus_resume		= ehci_bus_resume,
+	.bus_suspend		= lpc_ehci_bus_suspend,
+	.bus_resume		= lpc_ehci_bus_resume,
 #endif
 	.relinquish_port	= ehci_relinquish_port,
 	.port_handed_over	= ehci_port_handed_over,
@@ -289,21 +295,21 @@ static int lpc_ehci_resume(struct device *dev)
 	/* board vbus power */
 	lpc313x_vbus_power(1);
 
-
 	usb_hcd_resume_root_hub(hcd);
 
 	return 0;
 }
 #endif				/* CONFIG_USB_OTG */
+
+#if defined(CONFIG_PM)
 /**
  * FIXME: This should get into a common header
  * currently declared in arch/arm/mach-lpc313x/usb.c
  **/
 #define USB_DEV_PORTSC1			__REG(USBOTG_PHYS + 0x184)
 #define USBPRTS_PLPSCD	_BIT(23)
-static int lpc313x_ehci_suspend(struct platform_device *pdev, pm_message_t state)
+static void lpc_usb_suspend(void)
 {
-#ifdef CONFIG_PM
 	disable_irq(IRQ_VBUS_OVRC);
 	/* Shutoff vbus power */
 	lpc313x_vbus_power(0);
@@ -313,13 +319,10 @@ static int lpc313x_ehci_suspend(struct platform_device *pdev, pm_message_t state
 	SYS_USB_ATX_PLL_PD_REG = 0x1;
 	/* Shutoff IP Clock */
 	cgu_clk_en_dis(CGU_SB_USB_OTG_AHB_CLK_ID, 0);
-#endif
-	return 0;
 }
 
-static int lpc313x_ehci_resume(struct platform_device * pdev)
+static void lpc_usb_resume(void)
 {
-#ifdef CONFIG_PM
 	u32 bank = EVT_GET_BANK(EVT_usb_atx_pll_lock);
 	u32 bit_pos = EVT_usb_atx_pll_lock & 0x1F;
 	int tout = 100;
@@ -338,8 +341,37 @@ static int lpc313x_ehci_resume(struct platform_device * pdev)
 	USB_DEV_PORTSC1 &= ~USBPRTS_PLPSCD;
 	lpc313x_vbus_power(1);
 	enable_irq(IRQ_VBUS_OVRC);
+}
+
+/* turn off the vbus power when the root hub is suspended */
+static int lpc_ehci_bus_suspend(struct usb_hcd *hcd)
+{
+  int err = ehci_bus_suspend(hcd);
+  if (!err && power_down_on_suspend)
+    lpc_usb_suspend();
+  return err;
+}
+
+static int lpc_ehci_bus_resume(struct usb_hcd *hcd)
+{
+  if (SYS_USB_ATX_PLL_PD_REG) lpc_usb_resume();
+  return ehci_bus_resume(hcd);
+}
+#endif
+
+static int lpc313x_ehci_suspend(struct platform_device *pdev, pm_message_t state)
+{
+#ifdef CONFIG_PM
+    lpc_usb_suspend();
 #endif
 	return 0;
+}
+static int lpc313x_ehci_resume(struct platform_device * pdev)
+{
+#ifdef CONFIG_PM
+    lpc_usb_resume();
+#endif
+    return 0;
 }
 
 static struct platform_driver ehci_lpc_driver = {

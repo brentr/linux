@@ -232,7 +232,7 @@ int __init usbotg_init(void)
 	USB_DEV_OTGSC |= OTGSC_IDPU;
 	/* delay */
 	udelay(5);
-	
+
 	/* check ID state */
 	if ((USB_DEV_OTGSC & OTGSC_STATUS(OTGSC_ID_INT))) {
 #if defined(CONFIG_USB_GADGET_FSL_USB2)
@@ -257,10 +257,9 @@ int __init usbotg_init(void)
 			printk(KERN_INFO "Can't register lpc313x_ehci_device device\n");
 
 #if defined(CONFIG_MACH_EA313X) || defined(CONFIG_MACH_EA3152)
-		/* set thw I2SRX_WS0 pin as GPIO_IN for vbus overcurrent flag */
+		/* set the I2SRX_WS0 pin as GPIO_IN for vbus overcurrent flag */
 		gpio_direction_input(GPIO_I2SRX_WS0);
 		lpc313x_usb_brd.vbus_ovrc_irq = IRQ_EA_VBUS_OVRC;
-
 #else
 #ifdef IRQ_VBUS_OVRC
 		lpc313x_usb_brd.vbus_ovrc_irq = IRQ_VBUS_OVRC;
@@ -275,8 +274,8 @@ int __init usbotg_init(void)
 
 		/* request overcurrent IRQ  */
 		if(lpc313x_usb_brd.vbus_ovrc_irq >= 0) {
-			retval = request_irq( lpc313x_usb_brd.vbus_ovrc_irq, lpc313x_vbus_ovrc_irq, 
-					      IRQF_DISABLED, "VBUSOVR", 
+			retval = request_irq( lpc313x_usb_brd.vbus_ovrc_irq, lpc313x_vbus_ovrc_irq,
+					      IRQF_DISABLED, "VBUSOVR",
 					      &lpc313x_usb_brd);
 
 			if ( 0 != retval )
@@ -287,7 +286,7 @@ int __init usbotg_init(void)
 		printk(KERN_ERR "Unable to register USB host. Check USB_ID jumper!!!!!\n");
 #endif
 	}
-	
+
 #if !defined(CONFIG_USB_GADGET_FSL_USB2) && !defined(CONFIG_USB_OTG) && !defined(CONFIG_USB_EHCI_HCD)
 	/* if no USB component is enabled power-down USB block */
 	/* put in host mode */

@@ -88,8 +88,7 @@ static void pca9532_setgpio(int led_id, int state)
 #else
 	ret = g_leds[led_id >> 2];
 #endif
-	printk ("pca9532: r: 0x%x w: 0x%x reg:0x%x\n", (u8)(ret & 0xFF), reg, LED_REG(led_id));
-
+//	printk ("pca9532: r: 0x%x w: 0x%x reg:0x%x\n", (u8)(ret & 0xFF), reg, LED_REG(led_id));
 	if (ret != reg)
 		i2c_smbus_write_byte_data(client, LED_REG(led_id), reg);
 

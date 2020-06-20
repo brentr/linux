@@ -45,7 +45,7 @@ static int lpc_ehci_init(struct usb_hcd *hcd)
 	ehci_reset(ehci);
 
 	/* board vbus power */
-	//lpc313x_vbus_power(0);
+	lpc313x_vbus_power(0);
 
 	return retval;
 }
@@ -255,7 +255,7 @@ static int lpc_ehci_suspend(struct device *dev, pm_message_t state)
 	/* put the device in idele mode */
 	writel(0, (hcd->regs + 0x1a8));
 	/* board vbus power */
-	//lpc313x_vbus_power(0);
+	lpc313x_vbus_power(0);
 
 	return 0;
 }
@@ -287,7 +287,7 @@ static int lpc_ehci_resume(struct device *dev)
 	ehci_writel(ehci, tmp, &ehci->regs->command);
 
 	/* board vbus power */
-	//lpc313x_vbus_power(1);
+	lpc313x_vbus_power(1);
 
 
 	usb_hcd_resume_root_hub(hcd);

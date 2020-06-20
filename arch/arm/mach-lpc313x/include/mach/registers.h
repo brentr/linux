@@ -317,7 +317,7 @@
 
 #define GPIO_OUT_LOW(port, pin)  do { GPIO_M1_SET(port) = pin; GPIO_M0_RESET(port) = pin;} while(0)
 #define GPIO_OUT_HIGH(port, pin) do { GPIO_M1_SET(port) = pin; GPIO_M0_SET(port) = pin;} while(0)
-#define GPIO_IN(port, pin)       do { GPIO_M1_RESET(port) = pin; GPIO_M0_RESET(port) = pin;} while(0)
+#define GPIO_INP(port, pin)      do { GPIO_M1_RESET(port) = pin; GPIO_M0_RESET(port) = pin;} while(0)
 #define GPIO_DRV_IP(port, pin)   do { GPIO_M1_RESET(port) = pin; GPIO_M0_SET(port) = pin;} while(0)
 
 #define IOCONF_EBI_MCI       (0x000)

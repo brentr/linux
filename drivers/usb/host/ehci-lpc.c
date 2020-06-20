@@ -271,6 +271,8 @@ static int lpc_ehci_resume(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
+	struct fsl_usb2_platform_data *pdata = 
+          (struct fsl_usb2_platform_data *)pdev->dev.platform_data;
 	u32 tmp;
 
 	dbg("%s pdev=0x%p  pdata=0x%p  ehci=0x%p  hcd=0x%p\n",

@@ -301,6 +301,8 @@
 #define SYS_MUX_LCD_EBI     __REG (SYS_PHYS + 0x90)
 #define SYS_MUX_GPIO_MCI    __REG (SYS_PHYS + 0x94)
 #define SYS_MUX_NAND_MCI    __REG (SYS_PHYS + 0x98)
+#define SYS_MUX_UART_SPI    __REG (SYS_PHYS + 0x9C)
+#define SYS_MUX_I2STX_IPINT __REG (SYS_PHYS + 0xA0)
 
 /***********************************************************************
  * GPIO register definitions

@@ -547,6 +547,7 @@ EXPORT_SYMBOL(dma_request_channel);
 EXPORT_SYMBOL(dma_request_specific_channel);
 EXPORT_SYMBOL(dma_start_channel);
 EXPORT_SYMBOL(dma_stop_channel);
+EXPORT_SYMBOL(dma_stop_channel_sg);
 EXPORT_SYMBOL(dma_release_channel);
 EXPORT_SYMBOL(dma_set_irq_mask);
 EXPORT_SYMBOL(dma_read_counter);

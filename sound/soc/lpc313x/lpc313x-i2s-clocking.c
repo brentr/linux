@@ -184,7 +184,7 @@ static CGU_HPLL_SETUP_T *ppll_list[] = {
 	NULL
 };
 
-#if defined(CONFIG_SND_LPC315X_SOC)
+#if defined(CONFIG_SND_LPC315X_SOC) || defined(CONFIG_SND_LPC315X_SOC_MODULE)
 /* For LPC315X Analog CODEC 128FS clock has to be used */
 static const u32 fsdiv =
 #if defined (CONFIG_SND_CODEC_FS128)
@@ -192,7 +192,7 @@ static const u32 fsdiv =
 #endif
 #endif
 
-#if defined(CONFIG_SND_LPC313X_SOC)
+#if defined(CONFIG_SND_LPC313X_SOC) || defined(CONFIG_SND_LPC313X_SOC_MODULE)
 static const u32 fsdiv =
 #if defined (CONFIG_SND_CODEC_FS256)
 	256;

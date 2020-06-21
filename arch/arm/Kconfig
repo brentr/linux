@@ -611,6 +611,7 @@ config ARCH_LPC313X
        bool "NXP LPC313X series"
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_GPIO
+        select LEDS_GPIO
         select LEDS_GPIO_REGISTER
         select ARCH_CLOCKSOURCE_DATA
 	select GENERIC_TIME

@@ -117,7 +117,7 @@ static struct i2c_pnx_data i2c1_data = {
 	.adapter = &lpc_adapter1,
 };
 
-static struct platform_device i2c0_device = {
+static struct platform_device i2c0_bus = {
 	.name = "pnx-i2c",
 	.id = 0,
 	.dev = {
@@ -125,7 +125,7 @@ static struct platform_device i2c0_device = {
 	},
 };
 
-static struct platform_device i2c1_device = {
+static struct platform_device i2c1_bus = {
 	.name = "pnx-i2c",
 	.id = 1,
 	.dev = {
@@ -133,9 +133,9 @@ static struct platform_device i2c1_device = {
 	},
 };
 
-static struct platform_device *devices[] __initdata = {
-	&i2c0_device,
-	&i2c1_device,
+static struct platform_device *i2c_busses[] __initdata = {
+	&i2c0_bus,
+	&i2c1_bus,
 };
 
 void __init lpc313x_register_i2c_devices(void)
@@ -156,6 +156,6 @@ void __init lpc313x_register_i2c_devices(void)
 	LPC313x_I2C1_SLV_ADDR = 0x06E;
 #endif
 
-	platform_add_devices(devices, ARRAY_SIZE(devices));
+	platform_add_devices(i2c_busses, ARRAY_SIZE(i2c_busses));
 }
 

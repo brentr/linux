@@ -1018,7 +1018,7 @@ static size_t print_time(u64 ts, char *buf)
 		return snprintf(NULL, 0, "[%5lu.00] ", (unsigned long)ts);
 
 	return sprintf(buf, "[%5lu.%02lu] ",
-		       (unsigned long)ts, rem_nsec / 1000);
+		       (unsigned long)ts, rem_nsec / 10000000);
 }
 
 static size_t print_prefix(const struct printk_log *msg, bool syslog, char *buf)

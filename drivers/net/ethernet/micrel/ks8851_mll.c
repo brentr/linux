@@ -661,7 +661,7 @@ static void ks_set_powermode(struct ks_net *ks, unsigned pwrmode)
  * @ks: The chip information
  *
  */
-static void __devinit ks_read_config(struct ks_net *ks)
+static void ks_read_config(struct ks_net *ks)
 {
 	u16 reg_data = 0;
 
@@ -1470,7 +1470,7 @@ static void ks_phy_write(struct net_device *netdev,
  *
  * Read and check the TX/RX memory selftest information.
  */
-static int __devinit ks_read_selftest(struct ks_net *ks)
+static int ks_read_selftest(struct ks_net *ks)
 {
 	unsigned both_done = MBIR_TXMBF | MBIR_RXMBF;
 	int ret = 0;
@@ -1493,11 +1493,11 @@ static int __devinit ks_read_selftest(struct ks_net *ks)
 		ret |= 2;
 	}
 
-	ks_info(ks, "passed selftest\n");
+	netdev_info(ks->netdev, "passed selftest\n");
 	return ret;
 }
 
-static void __devinit ks_setup(struct ks_net *ks)
+static void ks_setup(struct ks_net *ks)
 {
 	u16	w;
 
@@ -1532,7 +1532,7 @@ static void __devinit ks_setup(struct ks_net *ks)
 }  /*ks_setup */
 
 
-static void __devinit ks_setup_int(struct ks_net *ks)
+static void ks_setup_int(struct ks_net *ks)
 {
 	ks->rc_ier = 0x00;
 	/* Clear the interrupts status of the hardware. */
@@ -1542,7 +1542,7 @@ static void __devinit ks_setup_int(struct ks_net *ks)
 	ks->rc_ier = (IRQ_LCI | IRQ_TXI | IRQ_RXI);
 }  /* ks_setup_int */
 
-static int __devinit ks_hw_init(struct ks_net *ks)
+static void ks_hw_init(struct ks_net *ks)
 {
 #define	MHEADER_SIZE	(sizeof(struct type_frame_head) * MAX_RECV_FRAMES)
 	ks->promiscuous = 0;
@@ -1550,15 +1550,11 @@ static int __devinit ks_hw_init(struct ks_net *ks)
 	ks->mcast_lst_size = 0;
 
 	ks->frame_head_info = kmalloc(MHEADER_SIZE, GFP_KERNEL);
-	if (!ks->frame_head_info)
-		return false;
-	}
-	return true;
 }
 
 #define macParmTag DRV_NAME".mac="
 
-static int __devinit parseMAC(u8 *mac, const char *cursor, unsigned id)
+static int parseMAC(u8 *mac, const char *cursor, unsigned id)
 /*
   extract the id'th element from ASCII comma list at cursor.
   Each list element is a MAC address of the form hh:hh:hh:hh:hh:hh
@@ -1587,7 +1583,7 @@ static int __devinit parseMAC(u8 *mac, const char *cursor, unsigned id)
   return id || (u8)(*end)>' ';
 }
 
-static char __devinit_data MACstring[120];
+static char MACstring[120];
 
 #if defined(CONFIG_OF)
 static const struct of_device_id ks8851_ml_dt_ids[] = {
@@ -1597,7 +1593,7 @@ static const struct of_device_id ks8851_ml_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, ks8851_ml_dt_ids);
 #endif
 
-static int __devinit ks8851_probe(struct platform_device *pdev)
+static int ks8851_probe(struct platform_device *pdev)
 {
 	int err = -ENOMEM;
 	struct resource *io_d, *io_c;
@@ -1655,6 +1651,10 @@ static int __devinit ks8851_probe(struct platform_device *pdev)
 	ks->mii.mdio_read       = ks_phy_read;
 	ks->mii.mdio_write      = ks_phy_write;
 
+	err = register_netdev(netdev);
+	if (err)
+		goto err_register;
+
 	netdev_info(netdev, "message enable is %d\n", msg_enable);
 	/* set the default message enable */
 	ks->msg_enable = netif_msg_init(msg_enable, (NETIF_MSG_DRV |
@@ -1664,21 +1664,19 @@ static int __devinit ks8851_probe(struct platform_device *pdev)
 	ks_read_config(ks);
 
 	/* simple check for a valid chip being connected to the bus */
-	if ((ks_rdreg16(ks, KS_CIDER) & ~CIDER_REV_MASK) != CIDER_ID) {
+	id = ks_rdreg16(ks, KS_CIDER);
+	if ((id & ~CIDER_REV_MASK) != CIDER_ID) {
 		netdev_err(netdev, "failed to read device ID\n");
 		err = -ENODEV;
 		goto err_register;
 	}
-	ks_info(ks,
+	netdev_info(netdev,
 		" Found chip, family: 0x%x, id: 0x%x, rev: 0x%x\n",
 		(id >> 8) & 0xff, (id >> 4) & 0xf, (id >> 1) & 0x7);
 	if (ks_read_selftest(ks)) {
 		err = -ENODEV;
 		goto err_register;
 	}
-	err = register_netdev(netdev);
-	if (err)
-		goto err_register;
 
 	platform_set_drvdata(pdev, netdev);
 
@@ -1701,7 +1699,7 @@ static int __devinit ks8851_probe(struct platform_device *pdev)
 		if (!pdata) {
 			netdev_err(netdev, "No platform data\n");
 			err = -ENODEV;
-			goto err_pdata;
+			goto err_register;
 		}
     if (parseMAC(ks->mac_addr, MACstring, pdev->id))
 		  memcpy(ks->mac_addr, pdata->mac_addr, ETH_ALEN);
@@ -1718,9 +1716,8 @@ static int __devinit ks8851_probe(struct platform_device *pdev)
 	ks_set_powermode(ks, PMECR_PM_SOFTDOWN);
 	return 0;
 
-err_pdata:
-	unregister_netdev(netdev);
 err_register:
+	unregister_netdev(netdev);
 err_get_irq:
 	iounmap(ks->hw_addr_cmd);
 err_ioremap1:

@@ -24,9 +24,9 @@
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/dm9000.h>
 #include <linux/i2c.h>
 #include <linux/irq.h>
+#include <linux/leds.h>
 #include <linux/interrupt.h>
 #include <linux/spi/spi.h>
 #include <linux/serial_8250.h>
@@ -88,10 +88,23 @@ enum {
 #define PC104_IRQ14  GPIO_GPIO17
 #define PC104_IRQ15  GPIO_GPIO18
 
-//These came from leds-pca9532
-int lpc313x_LED = GPIO_GPIO2;
+//This came from leds-pca9532
 int lpc313x_USBpower = -1;
 
+static struct gpio_led lpc_led_pins[] __initdata = {
+	{
+		.name	= "cpu:blue:busy",
+		.default_trigger = "cpu0",
+		.default_state = LEDS_GPIO_DEFSTATE_ON,
+		.gpio		= GPIO_GPIO2  //changed according to discovered baseboard
+	},
+};
+#define lpc313x_LED (lpc_led_pins[0].gpio)
+
+static const struct gpio_led_platform_data lpc_leds __initconst = {
+	.num_leds		= ARRAY_SIZE(lpc_led_pins),
+	.leds			= lpc_led_pins,
+};
 
 // default to reading board identification code from GPIOs 11-19
 static int __initdata boardID = -1;
@@ -287,6 +300,7 @@ static struct platform_device	lpc313x_mci_device = {
  * DM9000 ethernet device
  */
 #if defined(CONFIG_DM9000) || defined(CONFIG_DM9000_MODULE)
+#include <linux/dm9000.h>
 static struct resource dm9000_resource[] = {
 	[0] = {
 		.start	= EXT_SRAM1_PHYS,
@@ -387,6 +401,8 @@ static void __init ea_add_device_dm9000(void) {}
  */
 #if defined(CONFIG_KS8851_MLL) || defined(CONFIG_KS8851_MLL_MODULE)
 
+#include "linux/ks8851_mll.h"
+
 #define IRQ_KS8851_ETH_INT IRQ_DM9000_ETH_INT
 
 #define KS8851_base  EXT_SRAM1_PHYS
@@ -409,11 +425,18 @@ static struct resource ks8851_resource[] = {
 	}
 };
 
+static struct ks8851_mll_platform_data ks8851_data = {
+	.mac_addr = {0, 0, 0, 0, 0, 0} //default MAC address
+};
+
 static struct platform_device ks8851_device = {
 	.name		= "ks8851_mll",
 	.id		= 0,
 	.num_resources	= ARRAY_SIZE(ks8851_resource),
-	.resource	= ks8851_resource
+	.resource	= ks8851_resource,
+	.dev		= {
+		.platform_data	= &ks8851_data,
+	}
 };
 
 static void __init ea_add_device_ks8851(u32 timing)
@@ -810,8 +833,6 @@ static struct i2c_board_info ea3152_i2c1_devices[] __initdata = {
 
 #define PeripheralReset  GPIO_I2SRX_BCK0  //resets KS8851 chip on 3G host board
 
-extern int lpc313x_LED, lpc313x_USBpower;     /* from leds-pc9532.c */
-
 /* defined in irq.c */
 int replace_irq(u32 existingIrq, EVENT_T newEvent_pin, EVENT_TYPE_T newType);
 
@@ -880,7 +901,6 @@ static void __init boardInit(const char *signon, u32 timing)
     exportBootI(GPIO_GPIO0, "boot0");
     lpc313x_LED = GPIO_GPIO20;
   }
-  exportGPO(lpc313x_LED, "CPULED", 0);
 }
 
 
@@ -893,19 +913,15 @@ static void __init ea313x_init(void)
 
   requestGPO(GPIO_SPI_CS_OUT0, "SPIflashCS", 1);
 
-  /* register i2cdevices */
-  lpc313x_register_i2c_devices();
-
   platform_add_devices(devices, ARRAY_SIZE(devices));
 
-  i2c_register_board_info(0, ea313x_i2c_devices,
-          ARRAY_SIZE(ea313x_i2c_devices));
+  /* register i2c busses */
+  lpc313x_register_i2c_devices();
 
 #if defined(CONFIG_MACH_EA3152)
   i2c_register_board_info(1, ea3152_i2c1_devices,
 	   ARRAY_SIZE(ea3152_i2c1_devices));
 #endif
-
        /* add other devices depending on carrier board type */
   switch (boardID & 0xff) {
     case 0:  /* ESP 3G baseboard */
@@ -946,15 +962,17 @@ static void __init ea313x_init(void)
       break;
 
     default:
+	  i2c_register_board_info(0, ea313x_i2c_devices,
+			  ARRAY_SIZE(ea313x_i2c_devices));
       printk("Embedded Artists LPC31xx (boardID=0x%02x)\n", boardID);
 	      /* set the I2SRX_WS0 pin as GPIO_IN for vbus overcurrent flag */
       gpio_sysfs_set_active_low(GPIO_I2SRX_WS0, 1);
       exportGPI(GPIO_I2SRX_WS0, "USBoverload");
       exportBootI(GPIO_GPIO0, "boot0");
-      exportGPO(GPIO_GPIO2, "CPULED", 1);
       ea_add_device_dm9000();
       nr_uarts = 1;  //avoids having unintialized ports under /dev/ttyS*
   }
+  gpio_led_register_device(-1, &lpc_leds);
 }
 
 
@@ -981,10 +999,10 @@ void lpc313x_vbus_power(int enable)
 {  //FIXME:  This does not handle the Embedded Artists dev board
 	if (lpc313x_USBpower >= 0) {
 		if (enable) {
-			printk (KERN_INFO "enabling USB host vbus_power\n");
+			printk (KERN_INFO "USB power ON\n");
 			gpio_set_value(lpc313x_USBpower, 1);
 		} else {
-			printk (KERN_INFO "disabling USB host vbus_power\n");
+			printk (KERN_INFO "USB power OFF\n");
 			gpio_set_value(lpc313x_USBpower, 0);
 		}
 	}
@@ -1027,7 +1045,7 @@ extern void lpc313x_timer_init(void);
 #if defined(CONFIG_MACH_EA3152)
 MACHINE_START(EA3152, "NXP EA3152")
 #elif defined(CONFIG_MACH_EA313X)
-MACHINE_START(EA313X, "NXP EA314x")
+MACHINE_START(EA313X, "NXP EA31xx")
 #else
 #error Must select either EA313X or EA3152
 #endif

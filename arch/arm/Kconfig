@@ -610,8 +610,9 @@ config ARCH_W90X900
 config ARCH_LPC313X
        bool "NXP LPC313X series"
 	select ARCH_REQUIRE_GPIOLIB
-        select ARCH_CLOCKSOURCE_DATA
 	select GENERIC_GPIO
+        select LEDS_GPIO_REGISTER
+        select ARCH_CLOCKSOURCE_DATA
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select CPU_ARM926T

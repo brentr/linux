@@ -50,8 +50,8 @@ static int lpc_ehci_init(struct usb_hcd *hcd)
 	ehci->sbrn = 0x20;
 	ehci_reset(ehci);
 
-	/* board vbus power */
-	lpc313x_vbus_power(0);
+	/* enable board vbus power */
+	lpc313x_vbus_power(1);
 
 	return retval;
 }
@@ -271,7 +271,7 @@ static int lpc_ehci_resume(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
-	struct fsl_usb2_platform_data *pdata = 
+	struct fsl_usb2_platform_data *pdata =
           (struct fsl_usb2_platform_data *)pdev->dev.platform_data;
 	u32 tmp;
 

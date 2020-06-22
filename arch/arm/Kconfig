@@ -613,7 +613,6 @@ config ARCH_LPC313X
 	select GENERIC_GPIO
         select LEDS_GPIO
         select LEDS_GPIO_REGISTER
-        select ARCH_CLOCKSOURCE_DATA
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select CPU_ARM926T

@@ -181,8 +181,6 @@ void __init lpc313x_map_io(void)
 	iotable_init(lpc313x_io_desc, ARRAY_SIZE(lpc313x_io_desc));
 }
 
-extern int __init cgu_init(char *str);
-
 #define GPIO_BOOT0 GPIO_GPIO0
 #define GPIO_BOOT1 GPIO_GPIO1
 #define GPIO_BOOT2 GPIO_GPIO2
@@ -197,10 +195,15 @@ static void lpc313x_export_bootsel(void) {
 }
 
 
-void __init lpc313x_uart_init(void)
-{
 #ifndef CONFIG_SERIAL_8250_CONSOLE
+static void __init lpc313x_uart_init(void)
+{
 	int mul, div;
+
+	/* Switch on the UART clocks */
+	cgu_clk_en_dis(CGU_SB_UART_APB_CLK_ID, 1);
+	cgu_clk_en_dis(CGU_SB_UART_U_CLK_ID, 1);
+	cgu_clk_en_dis(CGU_SB_IOCONF_PCLK_ID, 1);
 
 	/* check what FDR bootloader is using */
 	mul = (UART_FDR_REG >> 4) & 0xF;
@@ -208,18 +211,17 @@ void __init lpc313x_uart_init(void)
 	if (div != 0)  {
 		platform_serial_ports[0].uartclk = (XTAL_CLOCK * mul) / (mul + div);
 	}
-#endif
 }
+#endif
+
+#ifdef CONFIG_DEBUG_FS
+extern void __init lpc313x_timer_init_debugfs(void);
+extern void __init lpc313x_cgu_init_debugfs(void);
+#endif
+
 
 int __init lpc313x_init(void)
 {
-	/* cgu init */
-	cgu_init("");
-	/* Switch on the UART clocks */
-	cgu_clk_en_dis(CGU_SB_UART_APB_CLK_ID, 1);
-	cgu_clk_en_dis(CGU_SB_UART_U_CLK_ID, 1);
-	cgu_clk_en_dis(CGU_SB_IOCONF_PCLK_ID, 1);
-
 	/* Put adc block in low power state.
 	 * Once ADC driver is added this should move to driver.
 	 */
@@ -252,15 +254,21 @@ int __init lpc313x_init(void)
 	/* AUDIO CODEC CLOCK (256FS) */
 	GPIO_DRV_IP(IOCONF_I2STX_1, 0x8);
 
+#ifndef CONFIG_SERIAL_8250_CONSOLE
 	lpc313x_uart_init();
+#endif
 
 	lpc313x_gpiolib_init();
 
 	lpc313x_export_bootsel();
 
+#ifdef CONFIG_DEBUG_FS
+	lpc313x_cgu_init_debugfs();
+	lpc313x_timer_init_debugfs();
+#endif
+
 	return platform_add_devices(devices, ARRAY_SIZE(devices));
 }
-
 
 #if defined(CONFIG_SERIAL_8250_CONSOLE)
 static int __init lpc313x_init_console(void)

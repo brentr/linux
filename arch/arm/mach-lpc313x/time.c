@@ -33,6 +33,7 @@
 #include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
+#include <asm/delay.h>
 #include <asm/mach/time.h>
 #include <mach/gpio.h>
 #include <mach/board.h>
@@ -240,7 +241,7 @@ static const struct file_operations lpc313x_timers_fops = {
 	.release	= single_release,
 };
 
-void lpc313x_timer_init_debugfs(void)
+void __init lpc313x_timer_init_debugfs(void)
 {
 	struct dentry		*node;
 
@@ -252,43 +253,50 @@ void lpc313x_timer_init_debugfs(void)
 
 	return;
 }
-#else
-void lpc313x_timer_init_debugfs(void) {}
 #endif
 
 #define clkHz (6000000) //6Mhz -- lpc313x_generic_timer_get_infreq(t);
 
 
-/* Continuous timer counter */
+/* Continuous timer counter is shared by clocksource and delay_timer */
+
+static struct lpc313x_timer *clkSrcTimer;
 
 static cycle_t clksource_read_cycles(struct clocksource *cs)
 {
-	return (cycle_t)(~0 - lpc313x_generic_timer_get_value(cs->archdata.timer));
+	return (cycle_t) -lpc313x_generic_timer_get_value(clkSrcTimer);
 }
-
 static struct clocksource clksource = {
 	.name		= "clksource",
 	.rating		= 200,
 	.read		= clksource_read_cycles,
 	.mask		= CLOCKSOURCE_MASK(32),
-	.shift		= 20,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS
+};
+
+static unsigned long readCycles(void)
+{
+	return (unsigned long) -lpc313x_generic_timer_get_value(clkSrcTimer);
+}
+static struct delay_timer LPCdelayTimer = {
+	.read_current_timer = readCycles,
+	.freq = clkHz
 };
 
 static void __init lpc313x_clocksource_init(void)
 {
-  struct lpc313x_timer *t = lpc313x_generic_timer_request("clksource");
-	if (!t)
+  clkSrcTimer = lpc313x_generic_timer_request("clksource");
+	if (!clkSrcTimer)
 		printk(KERN_ERR
 		  "%s: failed to request timer\n", clksource.name);
 
-	clksource.archdata.timer = t;
-	clksource.mult = clocksource_hz2mult(clkHz, clksource.shift);
-	lpc313x_generic_timer_continuous(t);
+	lpc313x_generic_timer_continuous(clkSrcTimer);
 
-	if (clocksource_register(&clksource))
+	if (clocksource_register_hz(&clksource, clkHz))
 		printk(KERN_ERR
 		  "%s: can't register clocksource!\n", clksource.name);
+
+	register_current_timer_delay(&LPCdelayTimer);
 }
 
 /* Programmable periodic timer */
@@ -324,7 +332,6 @@ static struct clock_event_device clkevent = {
 	.name		= "clkevent",
 	.features       = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
 	.rating         = 200,
-	.shift		= 20,
 	.set_mode	= clkevent_set_mode,
 	.set_next_event = clkevent_set_next_event,
 };
@@ -360,7 +367,6 @@ static void __init lpc313x_clockevents_init(void)
 
 	clkevent_irq.dev_id = (void *)(clkevent_timer = t);
 	setup_irq(lpc313x_generic_timer_get_irq(t), &clkevent_irq);
-	clkevent.mult = div_sc(clkHz, NSEC_PER_SEC, clkevent.shift);
 	clkevent.cpumask = cpumask_of(0);
 
 	/* Setup the clockevent structure. */

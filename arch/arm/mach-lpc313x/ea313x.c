@@ -683,7 +683,7 @@ struct lpc313x_spics_cfg lpc313x_stdspics_cfg[] =
         /* SPI CS1 is for the DS3234 Real-Time Clock */
 	{
 		.spi_spo	= 0, /* Low clock between transfers */
-		.spi_sph	= 1, /* Data capture on first clock edge (high edge with spi_spo=0) */
+		.spi_sph	= 1, /* Data capture on 2nd clock edge (low going edge with spi_spo=0) */
 		.spi_cs_set	= spi_set_cs_rtc,
 	},
         /* SPI CS2 is for user defined SPI device */
@@ -724,7 +724,7 @@ static struct platform_device lpc313x_spi_device = {
 /* SPIDEV driver registration */
 static int __init lpc313x_spidev_register(void)
 {
-	struct spi_board_info info =
+	static struct spi_board_info info __init_data =
 	{
 		.modalias = "spidev",
 		.max_speed_hz = 1000000,
@@ -740,7 +740,7 @@ arch_initcall(lpc313x_spidev_register);
 /* MTD Data FLASH driver registration */
 static int __init lpc313x_spimtd_register(void)
 {
-	struct spi_board_info info[] = {
+	static struct spi_board_info info[] __initdata = {
 #if defined(CONFIG_MTD_DATAFLASH)
 	  {
 		.modalias = "mtd_dataflash",
@@ -857,7 +857,7 @@ static void __init init_irq(void)
 */
 static void __init boardInit(const char *signon, u32 timing)
 {
-  struct spi_board_info rtc = {
+  static struct spi_board_info rtc __initdata = {
           .modalias = "ds3234",
           .max_speed_hz = 2500000,
           .bus_num = 0,

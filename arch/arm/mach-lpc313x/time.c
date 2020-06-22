@@ -255,8 +255,6 @@ void __init lpc313x_timer_init_debugfs(void)
 }
 #endif
 
-#define clkHz (6000000) //6Mhz -- lpc313x_generic_timer_get_infreq(t);
-
 
 /* Continuous timer counter is shared by clocksource and delay_timer */
 
@@ -267,7 +265,7 @@ static cycle_t clksource_read_cycles(struct clocksource *cs)
 	return (cycle_t) -lpc313x_generic_timer_get_value(clkSrcTimer);
 }
 static struct clocksource clksource = {
-	.name		= "clksource",
+	.name		= "LPC31clkSrc",
 	.rating		= 200,
 	.read		= clksource_read_cycles,
 	.mask		= CLOCKSOURCE_MASK(32),
@@ -279,8 +277,7 @@ static unsigned long readCycles(void)
 	return (unsigned long) -lpc313x_generic_timer_get_value(clkSrcTimer);
 }
 static struct delay_timer LPCdelayTimer = {
-	.read_current_timer = readCycles,
-	.freq = clkHz
+	.read_current_timer = readCycles
 };
 
 static void __init lpc313x_clocksource_init(void)
@@ -291,11 +288,10 @@ static void __init lpc313x_clocksource_init(void)
 		  "%s: failed to request timer\n", clksource.name);
 
 	lpc313x_generic_timer_continuous(clkSrcTimer);
-
-	if (clocksource_register_hz(&clksource, clkHz))
+	if (clocksource_register_hz(&clksource,
+			LPCdelayTimer.freq = lpc313x_generic_timer_get_infreq(clkSrcTimer)))
 		printk(KERN_ERR
 		  "%s: can't register clocksource!\n", clksource.name);
-
 	register_current_timer_delay(&LPCdelayTimer);
 }
 
@@ -315,7 +311,8 @@ static void clkevent_set_mode(enum clock_event_mode mode,
 {
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
-		lpc313x_generic_timer_periodic(clkevent_timer, clkHz);
+		lpc313x_generic_timer_periodic(clkevent_timer,
+		  lpc313x_generic_timer_get_infreq(clkevent_timer) / HZ);
 		break;
 	case CLOCK_EVT_MODE_SHUTDOWN:
 	case CLOCK_EVT_MODE_ONESHOT:
@@ -370,7 +367,8 @@ static void __init lpc313x_clockevents_init(void)
 	clkevent.cpumask = cpumask_of(0);
 
 	/* Setup the clockevent structure. */
-	clockevents_config_and_register(&clkevent, clkHz, 60, (u32)~0);
+	clockevents_config_and_register(&clkevent,
+	  lpc313x_generic_timer_get_infreq(clkevent_timer), 150, (u32)~0);
 }
 
 

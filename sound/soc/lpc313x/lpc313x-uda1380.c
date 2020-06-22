@@ -43,7 +43,7 @@
 #include "lpc313x-i2s.h"
 #include "lpc313x-i2s-clocking.h"
 
-#define SND_MODNAME "lpc313x_uda1380"
+#define SND_MODNAME "lpc31_uda1380"
 
 static int ea3131_uda1380_hw_params(struct snd_pcm_substream *substream,
 				    struct snd_pcm_hw_params *params)
@@ -145,7 +145,7 @@ static struct snd_soc_dai_link ea3131_uda1380_dai[] = {
 };
 
 static struct snd_soc_card snd_soc_machine_ea3131 = {
-	.name = "LPC313X_I2S_UDA1380",
+	.name = "LPC31_I2S_UDA1380",
 	.platform = &lpc313x_soc_platform,
 	.dai_link = &ea3131_uda1380_dai[0],
 	.num_links = ARRAY_SIZE(ea3131_uda1380_dai),
@@ -233,6 +233,6 @@ module_init(ea3131_asoc_init);
 module_exit(ea3131_asoc_exit);
 
 MODULE_AUTHOR("Kevin Wells <kevin.wells@nxp.com>");
-MODULE_DESCRIPTION("ASoC machine driver for LPC313X/UDA1380");
+MODULE_DESCRIPTION("ASoC machine driver for LPC31/UDA1380");
 MODULE_LICENSE("GPL");
 

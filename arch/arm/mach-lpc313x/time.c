@@ -248,7 +248,7 @@ void __init lpc313x_timer_init_debugfs(void)
 	node = debugfs_create_file("timers", S_IRUSR, NULL, NULL,
 			&lpc313x_timers_fops);
 	if (IS_ERR(node)) {
-		printk("lpc313x_timers_init: failed to init debugfs\n");
+		printk("lpc31_timers_init: failed to init debugfs\n");
 	}
 
 	return;
@@ -265,7 +265,7 @@ static cycle_t clksource_read_cycles(struct clocksource *cs)
 	return (cycle_t) -lpc313x_generic_timer_get_value(clkSrcTimer);
 }
 static struct clocksource clksource = {
-	.name		= "LPC31clkSrc",
+	.name		= "LPC31",
 	.rating		= 200,
 	.read		= clksource_read_cycles,
 	.mask		= CLOCKSOURCE_MASK(32),

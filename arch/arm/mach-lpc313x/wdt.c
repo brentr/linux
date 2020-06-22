@@ -33,7 +33,7 @@ static struct resource watchdog_resources[] = {
 };
 
 static struct platform_device watchdog_device = {
-	.name = "lpc313x-wdt",
+	.name = "lpc31-wdt",
 	.id = -1,
 	.num_resources = ARRAY_SIZE(watchdog_resources),
 	.resource = watchdog_resources,

@@ -30,7 +30,7 @@
 #define gadget_is_at91(g)		(!strcmp("at91_udc", (g)->name))
 #define gadget_is_goku(g)		(!strcmp("goku_udc", (g)->name))
 #ifdef CONFIG_USB_GADGET_LPC313x
-#define        gadget_is_lpc313x(g)    (!strcmp("lpc313x_udc", (g)->name))
+#define        gadget_is_lpc313x(g)    (!strcmp("lpc31_udc", (g)->name))
 #else
 #define        gadget_is_lpc313x(g)    (0)
 #endif

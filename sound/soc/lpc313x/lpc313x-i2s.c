@@ -42,7 +42,7 @@
 #include "lpc313x-pcm.h"
 #include "lpc313x-i2s.h"
 
-#define I2S_NAME "lpc313x-i2s"
+#define I2S_NAME "lpc31-i2s"
 
 /* All major audio rates are support and 16-bit I2S data is supported */
 #define LPC313X_I2S_RATES \
@@ -318,7 +318,7 @@ static int lpc313x_i2s_trigger(struct snd_pcm_substream *substream, int cmd)
 		break;
 
 	default:
-		pr_warning("lpc313x_i2s_triggers: Unsupported cmd: %d\n",
+		pr_warning("lpc31_i2s_triggers: Unsupported cmd: %d\n",
 				cmd);
 		ret = -EINVAL;
 	}
@@ -418,6 +418,6 @@ static void __exit lpc313x_i2s_exit(void)
 module_exit(lpc313x_i2s_exit);
 
 MODULE_AUTHOR("Kevin Wells <kevin.wells@nxp.com>");
-MODULE_DESCRIPTION("ASoC LPC313X I2S interface");
+MODULE_DESCRIPTION("ASoC LPC31 I2S interface");
 MODULE_LICENSE("GPL");
 

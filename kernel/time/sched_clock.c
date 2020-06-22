@@ -145,6 +145,7 @@ void __init sched_clock_register(u64 (*read)(void), int bits,
 	cd.epoch_cyc = new_epoch;
 	cd.epoch_ns = ns;
 	raw_write_seqcount_end(&cd.seq);
+#if 0
 
 	if (sched_clock_timer.function != NULL) {
 		/* update timeout for clock wrap */
@@ -166,7 +167,7 @@ void __init sched_clock_register(u64 (*read)(void), int bits,
 
 	pr_info("sched_clock: %u bits at %lu%cHz, resolution %lluns, wraps every %lluns\n",
 		bits, r, r_unit, res, wrap);
-
+#endif
 	/* Enable IRQ time accounting if we have a fast enough sched_clock */
 	if (irqtime > 0 || (irqtime == -1 && rate >= 1000000))
 		enable_sched_clock_irqtime();

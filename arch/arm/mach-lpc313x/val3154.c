@@ -79,7 +79,7 @@ static struct lpc313x_mci_board val3154_mci_platform_data = {
 
 static u64 mci_dmamask = 0xffffffffUL;
 static struct platform_device	lpc313x_mci_device = {
-	.name		= "lpc313x_mmc",
+	.name		= "lpc31_mmc",
 	.num_resources	= ARRAY_SIZE(lpc313x_mci_resources),
 	.dev		= {
 		.dma_mask		= &mci_dmamask,
@@ -132,7 +132,7 @@ struct lpc313x_spi_cfg lpc313x_spidata =
 
 static u64 lpc313x_spi_dma_mask = 0xffffffffUL;
 static struct platform_device lpc313x_spi_device = {
-	.name		= "spi_lpc313x",
+	.name		= "spi_lpc31",
 	.id		= 0,
 	.dev		= {
 		.dma_mask = &lpc313x_spi_dma_mask,
@@ -230,7 +230,7 @@ static int mci_init(u32 slot_id, irq_handler_t irqhdlr, void *data)
 	ret = request_irq(irq_data.irq,
 			val3154_mci_detect_interrupt,
 			level,
-			"mmc-cd", 
+			"mmc-cd",
 			&irq_data);
 	return ret;
 
@@ -267,7 +267,7 @@ static void mci_exit(u32 slot_id)
 
 void lpc313x_vbus_power(int enable)
 {
-	if (enable) 
+	if (enable)
 		gpio_set_value(GPIO_I2SRX_DATA0, 1);
 	else
 		gpio_set_value(GPIO_I2SRX_DATA0, 0);
@@ -280,7 +280,7 @@ static void __init val3154_init(void)
 	lpc313x_init();
 	/* register i2cdevices */
 	lpc313x_register_i2c_devices();
-	
+
 	i2c_register_board_info(1, val3154_i2c_devices,
 		ARRAY_SIZE(val3154_i2c_devices));
 

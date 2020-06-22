@@ -29,6 +29,7 @@
 #include <linux/leds.h>
 #include <linux/interrupt.h>
 #include <linux/spi/spi.h>
+#include <linux/spi/flash.h>
 #include <linux/serial_8250.h>
 
 #include <asm/system.h>
@@ -286,7 +287,7 @@ static struct lpc313x_mci_board ea313x_mci_platform_data = {
 
 static u64 mci_dmamask = 0xffffffffUL;
 static struct platform_device	lpc313x_mci_device = {
-	.name		= "lpc313x_mmc",
+	.name		= "lpc31_mmc",
 	.num_resources	= ARRAY_SIZE(lpc313x_mci_resources),
 	.dev		= {
 		.dma_mask		= &mci_dmamask,
@@ -580,19 +581,29 @@ static struct mtd_partition ea313x_nand0_partitions[] = {
 	16M:  Blocks 38  - 165  - Ramdisk image (if used)
 	???:  Blocks 166 - end  - Root filesystem/storage */
 	{
-		.name	= "lpc313x-std.rootfs",
+		.name	= "lpc31nand-std.rootfs",
 		.offset	= (BLK_SIZE * 166),
 		.size	= MTDPART_SIZ_FULL
 	},
 	{
-		.name	= "lpc313x-big.rootfs.",
+		.name	= "lpc31nand-big.rootfs.",
 		.offset	= (BLK_SIZE * 38),
 		.size	= MTDPART_SIZ_FULL
 	},
 	{
-		.name	= "lpc313x-max.rootfs",
+		.name	= "lpc31nand-max.rootfs",
 		.offset	= (BLK_SIZE * 1),
 		.size	= MTDPART_SIZ_FULL
+	},
+	{
+		.name	= "lpc31nand-kernel",
+		.offset	= (BLK_SIZE * 6),
+		.size	= (BLK_SIZE * 32) /* 4MB space */
+	},
+	{
+		.name	= "lpc31nand-ramdsk",
+		.offset	= MTDPART_OFS_APPEND,
+		.size	= (BLK_SIZE * 128) /* 16MB space */
 	},
 };
 
@@ -629,7 +640,7 @@ static struct lpc313x_nand_cfg ea313x_plat_nand = {
 
 static u64 nand_dmamask = 0xffffffffUL;
 static struct platform_device	lpc313x_nand_device = {
-	.name		= "lpc313x_nand",
+	.name		= "lpc31_nand",
 	.dev		= {
 		.dma_mask		= &nand_dmamask,
 		.coherent_dma_mask	= 0xffffffff,
@@ -674,30 +685,55 @@ static void spi_set_cs_user(int cs_num, int state)
 
 struct lpc313x_spics_cfg lpc313x_stdspics_cfg[] =
 {
-	/* SPI CS0 */
-	{
+	{ /* SPI CS0 */
 		.spi_spo	= 0, /* Low clock between transfers */
 		.spi_sph	= 0, /* Data capture on first clock edge (high edge with spi_spo=0) */
 		.spi_cs_set	= spi_set_cs_flash,
 	},
-        /* SPI CS1 is for the DS3234 Real-Time Clock */
-	{
+	{  /* SPI CS1 is for the DS3234 Real-Time Clock */
 		.spi_spo	= 0, /* Low clock between transfers */
 		.spi_sph	= 1, /* Data capture on 2nd clock edge (low going edge with spi_spo=0) */
 		.spi_cs_set	= spi_set_cs_rtc,
 	},
-        /* SPI CS2 is for user defined SPI device */
-	{
+	{   /* SPI CS2 is for user defined SPI device */
 		.spi_spo	= 0, /* Low clock between transfers */
 		.spi_sph	= 0, /* Data capture on first clock edge (high edge with spi_spo=0) */
 		.spi_cs_set	= spi_set_cs_user,
 	},
-        /* use this virtual SPI CS as alias for Spansion NOR flash on CS0 */
-	{
+	{   /* use this virtual SPI CS as alias for Spansion NOR flash on CS0 */
 		.spi_spo	= 0, /* Low clock between transfers */
 		.spi_sph	= 0, /* Data capture on first clock edge (high edge with spi_spo=0) */
 		.spi_cs_set	= spi_set_cs_flash,
 	},
+};
+
+static struct mtd_partition nor_spi_flash_partitions[] = {
+	{
+		.name	= "lpc31nor-bootloader",
+		.offset	= 0,
+		.size	= 0x40000
+	},
+	{
+		.name	= "lpc31nor-bootenv",
+		.offset	= MTDPART_OFS_APPEND,
+		.size	= 16*1024
+	},
+	{
+		.name	= "lpc31nor-unused",
+		.offset	= MTDPART_OFS_APPEND,
+		.size	= 48*1024
+	},
+	{
+		.name	= "lpc31nor-kernel",
+		.offset	= MTDPART_OFS_APPEND,
+		.size	= MTDPART_SIZ_FULL
+	},
+};
+
+static struct flash_platform_data spi_flash_data = {
+	.name		= "lpc31_nor",
+	.parts		= nor_spi_flash_partitions,
+	.nr_parts	= ARRAY_SIZE(nor_spi_flash_partitions),
 };
 
 struct lpc313x_spi_cfg lpc313x_spidata =
@@ -708,7 +744,7 @@ struct lpc313x_spi_cfg lpc313x_spidata =
 
 static u64 lpc313x_spi_dma_mask = 0xffffffffUL;
 static struct platform_device lpc313x_spi_device = {
-	.name		= "spi_lpc313x",
+	.name		= "spi_lpc31",
 	.id		= 0,
 	.dev		= {
 		.dma_mask = &lpc313x_spi_dma_mask,
@@ -724,7 +760,7 @@ static struct platform_device lpc313x_spi_device = {
 /* SPIDEV driver registration */
 static int __init lpc313x_spidev_register(void)
 {
-	static struct spi_board_info info __init_data =
+	static struct spi_board_info info __initdata =
 	{
 		.modalias = "spidev",
 		.max_speed_hz = 1000000,
@@ -747,6 +783,7 @@ static int __init lpc313x_spimtd_register(void)
 		.max_speed_hz = 30000000,
 		.bus_num = 0,
 		.chip_select = 0,
+		.platform_data	= &spi_flash_data,
 	  },
 #endif
 #if defined(CONFIG_MTD_M25P80)
@@ -755,6 +792,7 @@ static int __init lpc313x_spimtd_register(void)
 		.max_speed_hz = 30000000,
 		.bus_num = 0,
 		.chip_select = 3,  /* alias for CS0 */
+		.platform_data	= &spi_flash_data,
 	  }
 #endif
 	};
@@ -1044,9 +1082,9 @@ extern void __init lpc313x_timer_init(void);
 extern void __init cgu_init(void);
 
 #if defined(CONFIG_MACH_EA3152)
-MACHINE_START(EA3152, "NXP EA3152")
+MACHINE_START(EA3152, "NXP LPC3152")
 #elif defined(CONFIG_MACH_EA313X)
-MACHINE_START(EA313X, "NXP EA31xx")
+MACHINE_START(EA313X, "NXP LPC31xx")
 #else
 #error Must select either EA313X or EA3152
 #endif

@@ -243,9 +243,9 @@ int __init usbotg_init(void)
 		printk(KERN_INFO "Registering USB gadget 0x%08x 0x%08x (%d)\n", USB_DEV_OTGSC, EVRT_RSR(bank), bank);
 		retval = platform_device_register(&lpc313x_udc_device);
 		if ( 0 != retval )
-			printk(KERN_INFO "Can't register lpc313x_udc_device device\n");
+			printk(KERN_INFO "Can't register lpc31_udc_device device\n");
 #else
-		printk(KERN_ERR "Unable to register USB gadget. Check USB_ID jumper!!!!!\n");
+		printk(KERN_ERR "Unable to register USB gadget. Check USB_ID jumper!\n");
 #endif
 	} else {
 #if defined(CONFIG_USB_EHCI_HCD)
@@ -255,7 +255,7 @@ int __init usbotg_init(void)
 		printk(KERN_INFO "Registering USB host 0x%08x 0x%08x (%d)\n", USB_DEV_OTGSC, EVRT_RSR(bank), bank);
 		retval = platform_device_register(&lpc313x_ehci_device);
 		if ( 0 != retval )
-			printk(KERN_INFO "Can't register lpc313x_ehci_device device\n");
+			printk(KERN_INFO "Can't register lpc31_ehci_device device\n");
 
 lpc313x_usb_brd.vbus_ovrc_irq =
 #if defined(CONFIG_MACH_EA313X) || defined(CONFIG_MACH_EA3152)

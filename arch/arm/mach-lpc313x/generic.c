@@ -54,7 +54,7 @@ static void lpc313x_uart_pm(struct uart_port * port, unsigned int state,
 		break;
 	case 1:
 		/* we can wake the system in this state. So leave clocks on */
-		printk(KERN_INFO "lpc313x_uart_pm: UART can wake\n");
+		printk(KERN_INFO "lpc31_uart_pm: UART can wake\n");
 		break;
 	case 3:
 		/*
@@ -69,7 +69,7 @@ static void lpc313x_uart_pm(struct uart_port * port, unsigned int state,
 		cgu_endis_base_freq(CGU_SB_UARTCLK_BASE_ID, 0);
 		break;
 	default:
-		printk(KERN_ERR "lpc313x_uart_pm: unknown pm %d\n", state);
+		printk(KERN_ERR "lpc31_uart_pm: unknown pm %d\n", state);
 	}
 
 }
@@ -110,7 +110,7 @@ static struct resource rng_resources[] = {
 };
 
 static struct platform_device rng_device = {
-	.name = "lpc313x-rng",
+	.name = "lpc31-rng",
 	.id   = -1,
 	.num_resources = ARRAY_SIZE(rng_resources),
 	.resource = rng_resources,

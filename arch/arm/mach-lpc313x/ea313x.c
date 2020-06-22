@@ -1040,7 +1040,8 @@ static void __init ea313x_map_io(void)
 	iotable_init(ea313x_io_desc, ARRAY_SIZE(ea313x_io_desc));
 }
 
-extern void lpc313x_timer_init(void);
+extern void __init lpc313x_timer_init(void);
+extern void __init cgu_init(void);
 
 #if defined(CONFIG_MACH_EA3152)
 MACHINE_START(EA3152, "NXP EA3152")
@@ -1053,6 +1054,7 @@ MACHINE_START(EA313X, "NXP EA31xx")
 	.atag_offset	= 0x100,
 	.map_io		= ea313x_map_io,
 	.init_irq	= init_irq,
+	.init_early = cgu_init,
 	.init_time	= lpc313x_timer_init,
 	.init_machine	= ea313x_init,
 	.restart	= lpc313x_reset,

@@ -80,7 +80,7 @@ static inline u32 f_mult_m_div_n(u32 f_in, u32 m, u32 n)
 	temp = (work.word[1] &0xFFFF) << 16;
 	work.word[0] += temp;
 	/* put high half of base_clk[1] in low half */
-	work.word[1] >>= 16; 
+	work.word[1] >>= 16;
 
 	/* detect and correct  overflow from adding bottom 16 bits of high word to top of low word */
 	if (work.word[0] < temp) {
@@ -109,7 +109,7 @@ static unsigned int pl550_m(int x)
 		int new = (x & 1)^((x >> 1) & 1);
 		x = (x >> 1) | (new << 14);
 		m++;
-		if (m > 0x8000) 
+		if (m > 0x8000)
 			return 0;
 	}
 	return m+1;
@@ -122,7 +122,7 @@ static unsigned int pl550_n( int x)
 {
 	int n = 1;
 
-	if ((x<0) || (x>0x400)) 
+	if ((x<0) || (x>0x400))
 		return 0;
 	if ( x == 0x302)
 		return 1;
@@ -691,12 +691,12 @@ static int lpc313x_cgu_clocks_show(struct seq_file *s, void *v)
 {
 	u32 clk_id = CGU_SYS_FIRST;
 	u32 end_id = (CGU_SYSCLK_O_LAST + 1);
-	char* str[2] = { "OFF", " ON"}; 
+	char* str[2] = { "OFF", " ON"};
 
 	while (clk_id < end_id) {
-		seq_printf (s, "clock[%02d] %s(PSR)/%s(PCR) : %d\r\n", clk_id, 
-			str[(CGU_SB->clk_psr[clk_id] & 0x1)], 
-			str[(CGU_SB->clk_pcr[clk_id] & 0x1)], 
+		seq_printf (s, "clock[%02d] %s(PSR)/%s(PCR) : %d\r\n", clk_id,
+			str[(CGU_SB->clk_psr[clk_id] & 0x1)],
+			str[(CGU_SB->clk_pcr[clk_id] & 0x1)],
 			cgu_get_clk_freq(clk_id));
 		clk_id++;
 	}
@@ -717,7 +717,7 @@ static const struct file_operations lpc313x_cgu_clocks_fops = {
 	.release	= single_release,
 };
 
-static void lpc313x_cgu_init_debugfs(void)
+void __init lpc313x_cgu_init_debugfs(void)
 {
 	struct dentry		*node;
 
@@ -728,21 +728,16 @@ static void lpc313x_cgu_init_debugfs(void)
 
 	return;
 }
-#else
-static void lpc313x_cgu_init_debugfs(void) {}
 #endif
 /***********************************************************************
-* Initialize CGU data structure with PLL frequency passed by the boot 
+* Initialize CGU data structure with PLL frequency passed by the boot
 * loader.
 **********************************************************************/
-void lpc313x_timer_init_debugfs(void);
-int __init cgu_init(char *str)
+void __init cgu_init(void)
 {
 	int i, j;
 	u32 flags;
-	/* disable all non-essential clocks, enabel main clocks and wakeup
-	 * enables.
-	 */
+	// disable all non-essential clocks, enable main clocks and wakeup enables
 	for(i = 0; i < CGU_SB_NR_CLK; i++) {
 
 		if (i < 32) {
@@ -770,16 +765,8 @@ int __init cgu_init(char *str)
 	g_clkin_freq[4] = 0;
 	g_clkin_freq[5] = cgu_get_pll_freq(CGU_HPLL0_ID, FFAST_CLOCK);
 	g_clkin_freq[6] = cgu_get_pll_freq(CGU_HPLL1_ID, FFAST_CLOCK);
- 	printk(/*KERN_INFO*/ "cgu_init pll set at %d\n", g_clkin_freq[6]);
-	
-	lpc313x_cgu_init_debugfs();
-
-	lpc313x_timer_init_debugfs();
-
-
-	return 0;
+// 	printk(KERN_INFO "cgu_init pll set at %d\n", g_clkin_freq[6]);
 }
-
 
 EXPORT_SYMBOL(cgu_get_base_freq);
 EXPORT_SYMBOL(cgu_set_base_freq);

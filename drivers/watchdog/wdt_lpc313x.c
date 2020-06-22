@@ -180,7 +180,7 @@ static ssize_t lpc313x_wdt_write(struct file *file, const char *data,
 static const struct watchdog_info ident = {
 	.options = WDIOF_CARDRESET | WDIOF_MAGICCLOSE |
 	    WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING,
-	.identity = "LPC313x Watchdog",
+	.identity = "LPC31 Watchdog",
 };
 
 static long lpc313x_wdt_ioctl(struct file *file, unsigned int cmd,
@@ -297,7 +297,7 @@ static int lpc313x_wdt_probe(struct platform_device *pdev)
 
 	ret = misc_register(&lpc313x_wdt_misc);
 	if (ret < 0) {
-		dev_err(&pdev->dev, " lpc313x_wdt : failed to register\n");
+		dev_err(&pdev->dev, " lpc31_wdt : failed to register\n");
 		return ret;
 	}
 	platform_set_drvdata(pdev, wdt);
@@ -327,7 +327,7 @@ static struct platform_driver lpc313x_wdt_driver = {
 	.remove = lpc313x_wdt_remove,
 	.driver = {
 		   .owner = THIS_MODULE,
-		   .name = "lpc313x-wdt",
+		   .name = "lpc31-wdt",
 		   },
 };
 
@@ -345,7 +345,7 @@ module_init(lpc313x_wdt_init);
 module_exit(lpc313x_wdt_exit);
 
 MODULE_AUTHOR("NXP Semiconductors");
-MODULE_DESCRIPTION("Driver for the LPC313x watchdog");
+MODULE_DESCRIPTION("Driver for the LPC31 watchdog");
 MODULE_LICENSE("GPL");
 module_param(heartbeat, int, 0);
 MODULE_PARM_DESC(heartbeat,
@@ -357,4 +357,4 @@ module_param(nowayout, int, 0);
 MODULE_PARM_DESC(nowayout,
 		 "Set to 1 to keep watchdog running after device release");
 MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
-MODULE_ALIAS("platform:lpc313x-wdt");
+MODULE_ALIAS("platform:lpc31-wdt");

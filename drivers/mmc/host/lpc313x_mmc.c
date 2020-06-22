@@ -1535,7 +1535,7 @@ static int lpc313x_mci_probe(struct platform_device *pdev)
 	mci_writel(CTRL,SDMMC_CTRL_INT_ENABLE); // enable mci interrupt
 
 
-	dev_info(&pdev->dev, "LPC313x MMC controller at irq %d\n", irq);
+	dev_info(&pdev->dev, "LPC31 MMC controller at irq %d\n", irq);
 
 	return 0;
 
@@ -1627,7 +1627,7 @@ static struct platform_driver lpc313x_mci_driver = {
 	.resume     = lpc313x_mci_resume,
 	.remove		= __exit_p(lpc313x_mci_remove),
 	.driver		= {
-		.name		= "lpc313x_mmc",
+		.name		= "lpc31_mmc",
 	},
 };
 
@@ -1644,6 +1644,6 @@ static void __exit lpc313x_mci_exit(void)
 module_init(lpc313x_mci_init);
 module_exit(lpc313x_mci_exit);
 
-MODULE_DESCRIPTION("LPC313x Multimedia Card Interface driver");
+MODULE_DESCRIPTION("LPC31 Multimedia Card Interface driver");
 MODULE_AUTHOR("NXP Semiconductor VietNam");
 MODULE_LICENSE("GPL v2");

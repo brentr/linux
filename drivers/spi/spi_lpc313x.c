@@ -851,7 +851,7 @@ static int __init lpc313x_spi_probe(struct platform_device *pdev)
 		goto errout4;
 	}
 
-	dev_info(&pdev->dev, "LPC313x SPI driver\n");
+	dev_info(&pdev->dev, "LPC31 SPI driver\n");
 
 	return 0;
 
@@ -948,7 +948,7 @@ static struct platform_driver lpc313x_spi_driver __refdata = {
 	.suspend    = lpc313x_spi_suspend,
 	.resume     = lpc313x_spi_resume,
 	.driver		= {
-		.name	= "spi_lpc313x",
+		.name	= "spi_lpc31",
 		.owner	= THIS_MODULE,
 	},
 };
@@ -967,5 +967,5 @@ module_init(lpc313x_spi_init);
 module_exit(lpc313x_spi_exit);
 
 MODULE_AUTHOR("Kevin Wells <kevin.wells@nxp.com");
-MODULE_DESCRIPTION("LPC313X SPI Driver");
+MODULE_DESCRIPTION("LPC31 SPI Driver");
 MODULE_LICENSE("GPL");

@@ -71,6 +71,6 @@ enum {
 #define I2C_REG_TXS(a)	((a)->ioaddr + 0x28)	/* Tx slave FIFO (RO) */
 #define I2C_REG_STFL(a)	((a)->ioaddr + 0x2c)	/* Tx slave FIFO level (RO) */
 
-#define I2C_CHIP_NAME		"LPC313x-I2C"
+#define I2C_CHIP_NAME		"LPC31-I2C"
 
 #endif				/* __ASM_ARCH_I2C_H___ */

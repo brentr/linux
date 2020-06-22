@@ -108,7 +108,7 @@ static struct resource lpc313x_nand_resources[] = {
 #define BLK_SIZE (2048 * 64)
 static struct mtd_partition val3153_nand0_partitions[] = {
 	{
-		.name	= "lpc313x-boot",
+		.name	= "lpc31-boot",
 		.offset	= 0,
 		.size	= (BLK_SIZE * 1)
 	},
@@ -123,17 +123,17 @@ static struct mtd_partition val3153_nand0_partitions[] = {
 		.size	= (BLK_SIZE * 2)
 	},
 	{
-		.name	= "lpc313x-kernel",
+		.name	= "lpc31-kernel",
 		.offset	= (BLK_SIZE * 6),
 		.size	= (BLK_SIZE * 32) /* 4MB space */
 	},
 	{
-		.name	= "lpc313x-ramdsk",
+		.name	= "lpc31-ramdsk",
 		.offset	= (BLK_SIZE * 38),
 		.size	= (BLK_SIZE * 128) /* 16MB space */
 	},
 	{
-		.name	= "lpc313x-rootfs",
+		.name	= "lpc31-rootfs",
 		.offset	= (BLK_SIZE * 166),
 		.size	= MTDPART_SIZ_FULL
 	},
@@ -172,7 +172,7 @@ static struct lpc313x_nand_cfg val3153_plat_nand = {
 
 static u64 nand_dmamask = 0xffffffffUL;
 static struct platform_device	lpc313x_nand_device = {
-	.name		= "lpc313x_nand",
+	.name		= "lpc31_nand",
 	.dev		= {
 		.dma_mask		= &nand_dmamask,
 		.coherent_dma_mask	= 0xffffffff,
@@ -225,7 +225,7 @@ struct lpc313x_spi_cfg lpc313x_spidata =
 
 static u64 lpc313x_spi_dma_mask = 0xffffffffUL;
 static struct platform_device lpc313x_spi_device = {
-	.name		= "spi_lpc313x",
+	.name		= "spi_lpc31",
 	.id		= 0,
 	.dev		= {
 		.dma_mask = &lpc313x_spi_dma_mask,
@@ -271,7 +271,7 @@ static struct lpc313x_mci_board val3153_mci_platform_data = {
 
 static u64 mci_dmamask = 0xffffffffUL;
 static struct platform_device	lpc313x_mci_device = {
-	.name		= "lpc313x_mmc",
+	.name		= "lpc31_mmc",
 	.num_resources	= ARRAY_SIZE(lpc313x_mci_resources),
 	.dev		= {
 		.dma_mask		= &mci_dmamask,
@@ -425,7 +425,7 @@ static int mci_get_bus_wd(u32 slot_id)
 
 void lpc313x_vbus_power(int enable)
 {
-	if (enable) 
+	if (enable)
 		gpio_set_value(GPIO_GPIO18, 0);
 	else
 		gpio_set_value(GPIO_GPIO18, 1);

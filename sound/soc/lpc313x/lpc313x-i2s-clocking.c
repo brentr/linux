@@ -350,7 +350,7 @@ u32 lpc313x_main_clk_rate(u32 freq)
 	/* Compute and set proper divider */
 	ret = lpc313x_set_codec_freq(freq);
 #if defined (CONFIG_SND_DEBUG_VERBOSE)
-	pr_info("LPC313x ASOC main clock : %d (%d)\n",
+	pr_info("LPC31 ASOC main clock : %d (%d)\n",
 		i2s_clk_state.target_codec_rate,
 		i2s_clk_state.real_fs_codec_rate);
 #endif

@@ -155,7 +155,7 @@ static int lpc313x_pcm_allocate_dma_buffer(struct snd_pcm *pcm, int stream)
 	dmabuf->area = dma_alloc_coherent(pcm->card->dev, size,
 					  &dmabuf->addr, GFP_KERNEL);
 
-	pr_debug("lpc313x-pcm:"
+	pr_debug("lpc31-pcm:"
 		"preallocate_dma_buffer: area=%p, addr=%p, size=%d\n",
 		(void *) dmabuf->area,
 		(void *) dmabuf->addr,
@@ -389,7 +389,7 @@ static int lpc313x_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		break;
 
 	default:
-		pr_warning("lpc313x_pcm_trigger: Unsupported cmd: %d\n",
+		pr_warning("lpc31_pcm_trigger: Unsupported cmd: %d\n",
 				cmd);
 		ret = -EINVAL;
 	}

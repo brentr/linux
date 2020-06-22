@@ -41,7 +41,7 @@ static int lpc313x_rng_data_read(struct hwrng *rng, u32 * data)
 }
 
 static struct hwrng lpc313x_rng = {
-	.name		= "lpc313x",
+	.name		= "lpc31",
 	.data_read	  = lpc313x_rng_data_read,
 };
 
@@ -147,7 +147,7 @@ static int lpc313x_rng_resume(struct platform_device *pdev)
 
 static struct platform_driver lpc313x_rng_driver = {
 	.driver = {
-		   .name = "lpc313x-rng",
+		   .name = "lpc31-rng",
 		   .owner = THIS_MODULE,
 		   },
 	.probe   = lpc313x_rng_probe,
@@ -170,5 +170,5 @@ module_init(mod_init);
 module_exit(mod_exit);
 
 MODULE_AUTHOR("Ingo Albrecht");
-MODULE_DESCRIPTION("H/W RNG driver for NXP LPC313x");
+MODULE_DESCRIPTION("H/W RNG driver for NXP LPC31");
 MODULE_LICENSE("GPL");

@@ -1110,7 +1110,7 @@ static int lpc313x_nand_add_partition(struct lpc313x_nand_info *host,
 
 	/* Check for partitions from the CMDLINE first, these will override the
 	   board specific partitions */
-	mtd->name = "lpc313x_nand";
+	mtd->name = "lpc31_nand";
 	num_partitions = parse_mtd_partitions(mtd, part_probes,
 					      &partitions, 0);
 #endif
@@ -1471,7 +1471,7 @@ static struct platform_driver lpc313x_nand_driver = {
 	.resume		= lpc313x_nand_resume,
 	.suspend	= lpc313x_nand_suspend,
 	.driver = {
-		.name = "lpc313x_nand",
+		.name = "lpc31_nand",
 		.owner = THIS_MODULE,
 	},
 };
@@ -1489,7 +1489,7 @@ static void __exit lpc313x_nand_exit(void)
 module_init( lpc313x_nand_init);
 module_exit( lpc313x_nand_exit);
 
-MODULE_DESCRIPTION("LPC313x NAND Controller driver");
+MODULE_DESCRIPTION("LPC31 NAND Controller driver");
 MODULE_AUTHOR("NXP Semiconductor VietNam");
 MODULE_LICENSE("GPL v2");
 

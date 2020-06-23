@@ -60,7 +60,6 @@ struct lpc313xspi
 	int irq;
 	int id;
 	u32 spi_base_clock;
-	struct lpc313x_spi_cfg *psppcfg;
 	u32 current_speed_hz [3]; /* Per CS */
 	u8 current_bits_wd [3]; /* Per CS */
 
@@ -135,9 +134,9 @@ static inline void lpc313x_int_en(struct lpc313xspi *spidat, u32 ints)
 /*
  * Set a SPI chip select state
  */
-static inline void spi_force_cs(struct lpc313xspi *spidat, u8 cs, uint cs_state)
+static inline void spi_force_cs(struct spi_device *spi, uint cs_state)
 {
-	spidat->psppcfg->spics_cfg[cs].spi_cs_set((int) cs, (int) cs_state);
+	((spi_cs_sel *)spi->controller_data) ((int) cs_state);
 }
 
 /*
@@ -242,27 +241,18 @@ static int lpc313x_spi_setup(struct spi_device *spi)
 {
 	unsigned int bits = spi->bits_per_word;
 
-	/* There really isn't anuthing to do in this function, so verify the
+	/* There really isn't anything to do in this function, so verify the
 	   parameters are correct for the transfer */
-	if (spi->chip_select > spi->master->num_chipselect)
-	{
-		dev_dbg(&spi->dev,
-			"setup: invalid chipselect %u (%u defined)\n",
-			spi->chip_select, spi->master->num_chipselect);
-		return -EINVAL;
-	}
-
-	if (bits == 0)
-	{
-		bits = 8;
-	}
-	if ((bits < 4) || (bits > 16))
-	{
+	if ((bits < 4) || (bits > 16)) {
 		dev_dbg(&spi->dev,
 			"setup: invalid bits_per_word %u (8 to 16)\n", bits);
 		return -EINVAL;
 	}
-
+	if (!spi->controller_data) {
+		dev_dbg(&spi->dev, "missing controller_data for chip select %u\n",
+			spi->chip_select);
+		return -EINVAL;
+	}
 	return 0;
 }
 
@@ -487,11 +477,10 @@ static void lpc313x_work_one(struct lpc313xspi *spidat, struct spi_message *m)
 		void *rxbuf = t->rx_buf;
 		u32 data;
 		unsigned int rlen, tlen = t->len;
-		u32 speed_hz = t->speed_hz ? : spi->max_speed_hz;
-		u8 bits_per_word = t->bits_per_word ? : spi->bits_per_word;
+		u32 speed_hz = t->speed_hz ?: spi->max_speed_hz;
+		u8 bits_per_word = (t->bits_per_word ?: spi->bits_per_word) ?: 8;
 
 		/* Bits per word, data transfer size, and transfer counter */
-		bits_per_word = bits_per_word ? : 8;
 		wsize = bits_per_word >> 3;
 		rlen = tlen;
 
@@ -501,12 +490,12 @@ static void lpc313x_work_one(struct lpc313xspi *spidat, struct spi_message *m)
 
 		/* Setup timing and levels before initial chip select */
 		tmp = spi_readl(SLV_SET2_REG(0)) & ~(SPI_SLV2_SPO | SPI_SLV2_SPH);
-		if (spidat->psppcfg->spics_cfg[spi->chip_select].spi_spo != 0)
+		if (spi->mode & SPI_CPOL)
 		{
 			/* Clock high between transfers */
 			tmp |= SPI_SLV2_SPO;
 		}
-		if (spidat->psppcfg->spics_cfg[spi->chip_select].spi_sph != 0)
+		if (spi->mode & SPI_CPHA)
 		{
 			/* Data captured on 2nd clock edge */
 			tmp |= SPI_SLV2_SPH;
@@ -523,7 +512,7 @@ static void lpc313x_work_one(struct lpc313xspi *spidat, struct spi_message *m)
 		if (cs_change)
 		{
 			/* Force CS assertion */
-			spi_force_cs(spidat, spi->chip_select, 0);
+			spi_force_cs(spi, 0);
 		}
 		cs_change = t->cs_change;
 
@@ -636,7 +625,7 @@ static void lpc313x_work_one(struct lpc313xspi *spidat, struct spi_message *m)
 exit:
 	if (!(status == 0 && cs_change))
 	{
-		spi_force_cs(spidat, spi->chip_select, 1);
+		spi_force_cs(spi, 1);
 	}
 
 	/* Disable SPI, stop SPI clock to save power */
@@ -690,9 +679,7 @@ static int lpc313x_spi_transfer(struct spi_device *spi, struct spi_message *m)
 	/* check each transfer's parameters */
 	list_for_each_entry (t, &m->transfers, transfer_list)
 	{
-		u8 bits_per_word = t->bits_per_word ? : spi->bits_per_word;
-
-		bits_per_word = bits_per_word ? : 8;
+		u8 bits_per_word = (t->bits_per_word ?: spi->bits_per_word) ?: 8;
 		if ((!t->tx_buf) && (!t->rx_buf) && (t->len))
 		{
 			return -EINVAL;
@@ -723,7 +710,7 @@ static int __init lpc313x_spi_probe(struct platform_device *pdev)
 {
 	struct spi_master *master;
 	struct lpc313xspi *spidat;
-	int ret, irq, i;
+	int ret, irq;
 	dma_addr_t dma_handle;
 
 	/* Get required resources */
@@ -741,30 +728,6 @@ static int __init lpc313x_spi_probe(struct platform_device *pdev)
 	spidat = spi_master_get_devdata(master);
 	platform_set_drvdata(pdev, master);
 
-	/* Is a board specific configuration available? */
-	spidat->psppcfg = (struct lpc313x_spi_cfg *) pdev->dev.platform_data;
-	if (spidat->psppcfg == NULL)
-	{
-		/* No platform data, exit */
-		ret = -ENODEV;
-		goto errout;
-	}
-	if (spidat->psppcfg->num_cs < 1)
-	{
-		/* No chip selects supported in board structure, exit */
-		ret = -ENODEV;
-		goto errout;
-	}
-	for (i = 0; i < spidat->psppcfg->num_cs; i++)
-	{
-		if (spidat->psppcfg->spics_cfg[i].spi_cs_set == NULL)
-		{
-			/* Missing hardware CS control callback, exit */
-			ret = -ENODEV;
-			goto errout;
-		}
-	}
-
 	/* Save ID for this device */
 	spidat->pdev = pdev;
 	spidat->id = pdev->id;
@@ -774,7 +737,8 @@ static int __init lpc313x_spi_probe(struct platform_device *pdev)
 	INIT_WORK(&spidat->work, lpc313x_work);
 	INIT_LIST_HEAD(&spidat->queue);
 	init_waitqueue_head(&spidat->waitq);
-	spidat->workqueue = create_singlethread_workqueue(dev_name(master->dev.parent));	//***MOD:Fix from JPP to compile to latest versions of Linux
+	//***MOD:Fix from JPP to compile to latest versions of Linux
+	spidat->workqueue = create_singlethread_workqueue(dev_name(master->dev.parent));
 	if (!spidat->workqueue)
 	{
 		ret = -ENOMEM;
@@ -798,7 +762,9 @@ static int __init lpc313x_spi_probe(struct platform_device *pdev)
 	master->bus_num = spidat->id;
 	master->setup = lpc313x_spi_setup;
 	master->transfer = lpc313x_spi_transfer;
-	master->num_chipselect = spidat->psppcfg->num_cs;
+	master->mode_bits = SPI_CPOL|SPI_CPHA;
+	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4,16);
+	master->num_chipselect = (u16)(size_t)pdev->dev.platform_data;
 
 	/* Setup several work DMA buffers for dummy TX and RX data. These buffers just
 	   hold the temporary TX or RX data for the unused half of the transfer and have

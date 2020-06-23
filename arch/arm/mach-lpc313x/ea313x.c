@@ -552,7 +552,7 @@ static void __init ea_add_device_octalUart(u32 timing)
 }
 
 
-#if defined (CONFIG_MTD_NAND_LPC313X)
+#if defined(CONFIG_MTD_NAND_LPC313X) || defined(CONFIG_MTD_NAND_LPC313X_MODULE)
 static struct resource lpc313x_nand_resources[] = {
 	[0] = {
 		.start  = IO_NAND_PHYS,
@@ -651,7 +651,7 @@ static struct platform_device	lpc313x_nand_device = {
 };
 #endif
 
-#if defined(CONFIG_SPI_LPC313X)
+#if defined(CONFIG_SPI_LPC313X) || defined(CONFIG_SPI_LPC313X_MODULE)
 static struct resource lpc313x_spi_resources[] = {
 	[0] = {
 		.start	= SPI_PHYS,
@@ -662,48 +662,6 @@ static struct resource lpc313x_spi_resources[] = {
 		.start	= IRQ_SPI,
 		.end	= IRQ_SPI,
 		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static void spi_set_cs_flash(int cs_num, int state)
-{
-  (void) cs_num;
-  gpio_direction_output(GPIO_SPI_CS_OUT0, state);
-}
-
-static void spi_set_cs_rtc(int cs_num, int state)
-{
-  (void) cs_num;
-  gpio_direction_output(GPIO_MUART_CTS_N, state);
-}
-
-static void spi_set_cs_user(int cs_num, int state)
-{
-  (void) cs_num;
-  gpio_direction_output(GPIO_MUART_RTS_N, state);
-}
-
-struct lpc313x_spics_cfg lpc313x_stdspics_cfg[] =
-{
-	{ /* SPI CS0 */
-		.spi_spo	= 0, /* Low clock between transfers */
-		.spi_sph	= 0, /* Data capture on first clock edge (high edge with spi_spo=0) */
-		.spi_cs_set	= spi_set_cs_flash,
-	},
-	{  /* SPI CS1 is for the DS3234 Real-Time Clock */
-		.spi_spo	= 0, /* Low clock between transfers */
-		.spi_sph	= 1, /* Data capture on 2nd clock edge (low going edge with spi_spo=0) */
-		.spi_cs_set	= spi_set_cs_rtc,
-	},
-	{   /* SPI CS2 is for user defined SPI device */
-		.spi_spo	= 0, /* Low clock between transfers */
-		.spi_sph	= 0, /* Data capture on first clock edge (high edge with spi_spo=0) */
-		.spi_cs_set	= spi_set_cs_user,
-	},
-	{   /* use this virtual SPI CS as alias for Spansion NOR flash on CS0 */
-		.spi_spo	= 0, /* Low clock between transfers */
-		.spi_sph	= 0, /* Data capture on first clock edge (high edge with spi_spo=0) */
-		.spi_cs_set	= spi_set_cs_flash,
 	},
 };
 
@@ -736,12 +694,6 @@ static struct flash_platform_data spi_flash_data = {
 	.nr_parts	= ARRAY_SIZE(nor_spi_flash_partitions),
 };
 
-struct lpc313x_spi_cfg lpc313x_spidata =
-{
-	.num_cs			= ARRAY_SIZE(lpc313x_stdspics_cfg),
-	.spics_cfg		= lpc313x_stdspics_cfg,
-};
-
 static u64 lpc313x_spi_dma_mask = 0xffffffffUL;
 static struct platform_device lpc313x_spi_device = {
 	.name		= "spi_lpc31",
@@ -749,15 +701,20 @@ static struct platform_device lpc313x_spi_device = {
 	.dev		= {
 		.dma_mask = &lpc313x_spi_dma_mask,
 		.coherent_dma_mask = 0xffffffffUL,
-		.platform_data	= &lpc313x_spidata,
+		.platform_data = (void *) 4  //we define 4 virtual chip selects
 	},
 	.num_resources	= ARRAY_SIZE(lpc313x_spi_resources),
 	.resource	= lpc313x_spi_resources,
 };
 
 /* If both SPIDEV and MTD data flash are enabled with the same chip select, only 1 will work */
-#if defined(CONFIG_SPI_SPIDEV)
+#if defined(CONFIG_SPI_SPIDEV) || defined(CONFIG_SPI_SPIDEV_MODULE)
 /* SPIDEV driver registration */
+static void spi_set_cs_user(int state)
+{
+  gpio_direction_output(GPIO_MUART_RTS_N, state);
+}
+
 static int __init lpc313x_spidev_register(void)
 {
 	static struct spi_board_info info __initdata =
@@ -765,7 +722,9 @@ static int __init lpc313x_spidev_register(void)
 		.modalias = "spidev",
 		.max_speed_hz = 1000000,
 		.bus_num = 0,
+		.mode = 0,
 		.chip_select = 2,
+		.controller_data = spi_set_cs_user,
 	};
 	return spi_register_board_info(&info, 1);
 }
@@ -774,24 +733,37 @@ arch_initcall(lpc313x_spidev_register);
 
 /*  either one Amtel DataFlash *or* Spansion SPI NOR flash may be loaded */
 /* MTD Data FLASH driver registration */
+
+#if defined(CONFIG_MTD_DATAFLASH) || defined(CONFIG_MTD_M25P80) || \
+	defined(CONFIG_MTD_DATAFLASH_MODULE) || defined(CONFIG_MTD_M25P80_MODULE)
+static void spi_set_cs_flash(int state)
+{
+  gpio_direction_output(GPIO_SPI_CS_OUT0, state);
+}
+#endif
+
 static int __init lpc313x_spimtd_register(void)
 {
 	static struct spi_board_info info[] __initdata = {
-#if defined(CONFIG_MTD_DATAFLASH)
+#if defined(CONFIG_MTD_DATAFLASH) || defined(CONFIG_MTD_DATAFLASH_MODULE)
 	  {
 		.modalias = "mtd_dataflash",
 		.max_speed_hz = 30000000,
 		.bus_num = 0,
+		.mode = 0,
 		.chip_select = 0,
+		.controller_data = spi_set_cs_flash,
 		.platform_data	= &spi_flash_data,
 	  },
 #endif
-#if defined(CONFIG_MTD_M25P80)
+#if defined(CONFIG_MTD_M25P80) || defined(CONFIG_MTD_M25P80_MODULE)
 	  {
 		.modalias = "m25p80",
 		.max_speed_hz = 30000000,
 		.bus_num = 0,
+		.mode = 0,
 		.chip_select = 3,  /* alias for CS0 */
+		.controller_data = spi_set_cs_flash,
 		.platform_data	= &spi_flash_data,
 	  }
 #endif
@@ -803,10 +775,10 @@ arch_initcall(lpc313x_spimtd_register);
 
 static struct platform_device *devices[] __initdata = {
 	&lpc313x_mci_device,
-#if defined (CONFIG_MTD_NAND_LPC313X)
+#if defined(CONFIG_MTD_NAND_LPC313X) || defined(CONFIG_MTD_NAND_LPC313X_MODULE)
 	&lpc313x_nand_device,
 #endif
-#if defined(CONFIG_SPI_LPC313X)
+#if defined(CONFIG_SPI_LPC313X) || defined(CONFIG_SPI_LPC313X_MODULE)
 	&lpc313x_spi_device,
 #endif
 };
@@ -890,17 +862,26 @@ static void __init init_irq(void)
 }
 
 
+#if defined(CONFIG_RTC_DRV_DS3234) || defined(CONFIG_RTC_DRV_DS3234_MODULE)
 /*
   initialization common to ESP3G and PC104 carrier
 */
+static void spi_set_cs_rtc(int state)
+{
+  gpio_direction_output(GPIO_MUART_CTS_N, state);
+}
+static struct spi_board_info rtc __initdata = {
+	.modalias = "ds3234",
+	.max_speed_hz = 2500000,
+	.bus_num = 0,
+	.mode = SPI_CPHA,
+	.chip_select = 1,
+	.controller_data = spi_set_cs_rtc
+  };
+#endif
+
 static void __init boardInit(const char *signon, u32 timing)
 {
-  static struct spi_board_info rtc __initdata = {
-          .modalias = "ds3234",
-          .max_speed_hz = 2500000,
-          .bus_num = 0,
-          .chip_select = 1,
-  };
   /*  Note that reset generator chip may extend reset by 100ms
       Therefore, it it important to hold off initializing the KS8851 ethernet
       Loading the KS8851 driver from a kernel module ensures this
@@ -908,9 +889,11 @@ static void __init boardInit(const char *signon, u32 timing)
   printk(signon);
   ea_add_device_ks8851(timing);
   SYS_MUX_UART_SPI = 1;  //SPI CS1 & CS2 lines replace USART CTS & RTS
-  requestGPO(GPIO_MUART_CTS_N, "ds3234CS", 1);
   requestGPO(GPIO_MUART_RTS_N, "SPIdevCS", 1);
+#if defined(CONFIG_RTC_DRV_DS3234) || defined(CONFIG_RTC_DRV_DS3234_MODULE)
+  requestGPO(GPIO_MUART_CTS_N, "ds3234CS", 1);
   spi_register_board_info(&rtc, 1);
+#endif
 
   //I2STX_WS0 should be wired to USB_ID
   //early PC104 carrier boards mistakenly connect NAND_RYBN2 to USB_ID

@@ -94,27 +94,9 @@ struct lpc313x_nand_cfg {
 /*
  * Specifies behaviour of each supported chip select
  */
-typedef void (*spi_cs_sel)(int, int);
-struct lpc313x_spics_cfg {
-	/* spi_spo is the serial clock polarity between transfers, 1 = high level,
-	   0 = low */
-	u8 spi_spo;
-	/* spi_sph is the control for clock edge capture, 0 = capture data on 1rst
-	   clock edge, 1 = second edge capture */
-	u8 spi_sph;
-	spi_cs_sel spi_cs_set; /* Sets state of SPI chip select */
-};
+typedef void spi_cs_sel(int);
 
-/*
- * Defines the number of chip selects and the cs data
- */
-struct lpc313x_spi_cfg {
-	u32 num_cs; /* Number of CS supported on this board */
-	/* Array of cs setup data (num_cs entries) */
-	struct lpc313x_spics_cfg *spics_cfg;
-};
-
-#if defined (CONFIG_MACH_VAL3153) 
+#if defined (CONFIG_MACH_VAL3153)
 #define MAX_MCI_SLOTS		2
 #else
 #define MAX_MCI_SLOTS		1

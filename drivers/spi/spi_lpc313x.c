@@ -60,8 +60,8 @@ struct lpc313xspi
 	int irq;
 	int id;
 	u32 spi_base_clock;
-	u32 current_speed_hz [3]; /* Per CS */
-	u8 current_bits_wd [3]; /* Per CS */
+	u32 current_speed_hz;//multiplexing GPIO chip selects onto single LP31 SPI CS0
+	u8 current_bits_wd;
 
 	/* DMA allocated regions */
 	u32 dma_base_v;
@@ -136,34 +136,34 @@ static inline void lpc313x_int_en(struct lpc313xspi *spidat, u32 ints)
  */
 static inline void spi_force_cs(struct spi_device *spi, uint cs_state)
 {
+//	printk(KERN_DEBUG "SPI CS[%u]=%d\n", spi->chip_select, cs_state);
 	((spi_cs_sel *)spi->controller_data) ((int) cs_state);
 }
 
 /*
  * Set data width for the SPI chip select
  */
-static void lpc313x_set_cs_data_bits(struct lpc313xspi *spidat, u8 cs, u8 data_width)
+static void lpc313x_set_data_bits(struct lpc313xspi *spidat, u8 data_width)
 {
-	if (spidat->current_bits_wd[cs] != data_width)
+	if (spidat->current_bits_wd != data_width)
 	{
 		u32 tmp = spi_readl(SLV_SET2_REG(0));
 		tmp &= ~SPI_SLV2_WD_SZ(0x1F);
 		tmp |= SPI_SLV2_WD_SZ((u32) (data_width - 1));
 		spi_writel(SLV_SET2_REG(0), tmp);
 
-		spidat->current_bits_wd[cs] = data_width;
+		spidat->current_bits_wd = data_width;
 	}
 }
 
 /*
  * Set clock rate and delays for the SPI chip select
  */
-static void lpc313x_set_cs_clock(struct lpc313xspi *spidat, u8 cs, u32 clockrate)
+static void lpc313x_set_clock(struct lpc313xspi *spidat, u32 clockrate)
 {
-	u32 reg, div, ps, div1;
-
-	if (clockrate != spidat->current_speed_hz[cs])
+	if (clockrate != spidat->current_speed_hz)
 	{
+		u32 reg, div, ps, div1;
 		reg = spi_readl(SLV_SET1_REG(0));
 		reg &= ~0xFFFF;
 
@@ -179,7 +179,7 @@ static void lpc313x_set_cs_clock(struct lpc313xspi *spidat, u8 cs, u32 clockrate
 		spi_writel(SLV_SET1_REG(0),
 			(reg | SPI_SLV1_CLK_PS(ps) | SPI_SLV1_CLK_DIV1(div1)));
 
-		spidat->current_speed_hz[cs] = clockrate;
+		spidat->current_speed_hz = clockrate;
 	}
 }
 
@@ -223,8 +223,8 @@ static void lpc313x_spi_prep(struct lpc313xspi *spidat)
 	spi_writel(SLV_SET2_REG(0), tmp);
 
 	/* Use a default of 8 data bits and a 100K clock for now */
-	lpc313x_set_cs_data_bits(spidat, 0, 8);
-	lpc313x_set_cs_clock(spidat, 0, 100000);
+	lpc313x_set_data_bits(spidat, 8);
+	lpc313x_set_clock(spidat, 100000);
 
 	/* We'll always use CS0 for this driver. Since the chip select is generated
 	   by a GPO, it doesn't matter which one we use */
@@ -485,8 +485,8 @@ static void lpc313x_work_one(struct lpc313xspi *spidat, struct spi_message *m)
 		rlen = tlen;
 
 		/* Setup the appropriate chip select */
-		lpc313x_set_cs_clock(spidat, spi->chip_select, speed_hz);
-		lpc313x_set_cs_data_bits(spidat, spi->chip_select, bits_per_word);
+		lpc313x_set_clock(spidat, speed_hz);
+		lpc313x_set_data_bits(spidat, bits_per_word);
 
 		/* Setup timing and levels before initial chip select */
 		tmp = spi_readl(SLV_SET2_REG(0)) & ~(SPI_SLV2_SPO | SPI_SLV2_SPH);
@@ -507,7 +507,8 @@ static void lpc313x_work_one(struct lpc313xspi *spidat, struct spi_message *m)
 		/* Make sure FIFO is flushed, clear pending interrupts, DMA
 		   initially disabled, and then enable SPI interface */
 		spi_writel(CONFIG_REG, (spi_readl(CONFIG_REG) | SPI_CFG_ENABLE));
-
+//printk(KERN_DEBUG "SPI CS[%u] in mode%u @%u\n",
+//  spi->chip_select, spi->mode, speed_hz);
 		/* Assert selected chip select */
 		if (cs_change)
 		{
@@ -670,7 +671,7 @@ static int lpc313x_spi_transfer(struct spi_device *spi, struct spi_message *m)
 {
 	struct spi_master *master = spi->master;
 	struct lpc313xspi *spidat = spi_master_get_devdata(master);
-	//struct device *controller = spi->master->dev.parent;
+//	struct device *controller = spi->master->dev.parent;
 	struct spi_transfer *t;
 	unsigned long flags;
 
@@ -688,13 +689,13 @@ static int lpc313x_spi_transfer(struct spi_device *spi, struct spi_message *m)
 		{
 			return -EINVAL;
 		}
-
-		/*dev_dbg(controller,
+#if 0
+		dev_dbg(controller,
 			"  xfer %p: len %u tx %p/%08x rx %p/%08x DMAmapped=%d\n",
 			t, t->len, t->tx_buf, t->tx_dma,
-			t->rx_buf, t->rx_dma, m->is_dma_mapped); */   //***MOD-
+			t->rx_buf, t->rx_dma, m->is_dma_mapped);    //***MOD-
+#endif
 	}
-
 	spin_lock_irqsave(&spidat->lock, flags);
 	list_add_tail(&m->queue, &spidat->queue);
 	queue_work(spidat->workqueue, &spidat->work);
@@ -764,7 +765,7 @@ static int __init lpc313x_spi_probe(struct platform_device *pdev)
 	master->transfer = lpc313x_spi_transfer;
 	master->mode_bits = SPI_CPOL|SPI_CPHA;
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4,16);
-	master->num_chipselect = (u16)(size_t)pdev->dev.platform_data;
+	master->num_chipselect = (size_t)pdev->dev.platform_data;;
 
 	/* Setup several work DMA buffers for dummy TX and RX data. These buffers just
 	   hold the temporary TX or RX data for the unused half of the transfer and have

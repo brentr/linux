@@ -601,7 +601,7 @@ static struct mtd_partition ea313x_nand0_partitions[] = {
 		.size	= (BLK_SIZE * 32) /* 4MB space */
 	},
 	{
-		.name	= "lpc31nand-ramdsk",
+		.name	= "lpc31nand-ramdisk",
 		.offset	= MTDPART_OFS_APPEND,
 		.size	= (BLK_SIZE * 128) /* 16MB space */
 	},
@@ -721,9 +721,7 @@ static int __init lpc313x_spidev_register(void)
 	{
 		.modalias = "spidev",
 		.max_speed_hz = 1000000,
-		.bus_num = 0,
-		.mode = 0,
-		.chip_select = 2,
+		.chip_select = 3,
 		.controller_data = spi_set_cs_user,
 	};
 	return spi_register_board_info(&info, 1);
@@ -749,9 +747,7 @@ static int __init lpc313x_spimtd_register(void)
 	  {
 		.modalias = "mtd_dataflash",
 		.max_speed_hz = 30000000,
-		.bus_num = 0,
-		.mode = 0,
-		.chip_select = 0,
+		.chip_select = 1,
 		.controller_data = spi_set_cs_flash,
 		.platform_data	= &spi_flash_data,
 	  },
@@ -760,9 +756,7 @@ static int __init lpc313x_spimtd_register(void)
 	  {
 		.modalias = "m25p80",
 		.max_speed_hz = 30000000,
-		.bus_num = 0,
-		.mode = 0,
-		.chip_select = 3,  /* alias for CS0 */
+		.chip_select = 2,  /* alias for CS0 */
 		.controller_data = spi_set_cs_flash,
 		.platform_data	= &spi_flash_data,
 	  }
@@ -873,11 +867,9 @@ static void spi_set_cs_rtc(int state)
 static struct spi_board_info rtc __initdata = {
 	.modalias = "ds3234",
 	.max_speed_hz = 2500000,
-	.bus_num = 0,
-	.mode = SPI_CPHA,
-	.chip_select = 1,
+	.chip_select = 0,  //these need only be unique and < number of chip selects
 	.controller_data = spi_set_cs_rtc
-  };
+};
 #endif
 
 static void __init boardInit(const char *signon, u32 timing)

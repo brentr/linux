@@ -746,7 +746,7 @@ static int __init lpc313x_spimtd_register(void)
 	  {
 		.modalias = "mtd_dataflash",
 		.chip_select = lpc31spiAtmelFlash,
-		.max_speed_hz = 30000000,
+		.max_speed_hz = 33*1000*1000,  //max spi speed of lpc31
 		.controller_data = spi_set_cs_flash,
 		.platform_data	= &spi_flash_data,
 	  },
@@ -755,7 +755,7 @@ static int __init lpc313x_spimtd_register(void)
 	  {
 		.modalias = "m25p80",
 		.chip_select = lpc31spiSpansionFlash,
-		.max_speed_hz = 45000000,  //max spi speed of lpc31
+		.max_speed_hz = 33*1000*1000,
 		.controller_data = spi_set_cs_flash,
 		.platform_data	= &spi_flash_data,
 	  }

@@ -92,7 +92,7 @@ struct lpc313x_nand_cfg {
 };
 
 /*
- * Specifies behaviour of each supported chip select
+ * Specifies behaviour of each supported SPI chip select
  */
 typedef void spi_cs_sel(int);
 

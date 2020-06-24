@@ -95,6 +95,13 @@ struct lpc313x_nand_cfg {
  * Specifies behaviour of each supported SPI chip select
  */
 typedef void spi_cs_sel(int);
+enum lpc31spiSlave {
+	lpc31spiRTC,       		//Real-Time Clock
+	lpc31spiAtmelFlash,  	//Atmel "dataflash"
+	lpc31spiSpansionFlash,	//Spansion (m25p80) flash
+	lpc31spiUserDev,
+	lpc31spiSlaves			//number of slaves
+};
 
 #if defined (CONFIG_MACH_VAL3153)
 #define MAX_MCI_SLOTS		2

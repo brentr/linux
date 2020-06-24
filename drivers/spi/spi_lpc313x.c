@@ -765,7 +765,7 @@ static int __init lpc313x_spi_probe(struct platform_device *pdev)
 	master->transfer = lpc313x_spi_transfer;
 	master->mode_bits = SPI_CPOL|SPI_CPHA;
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4,16);
-	master->num_chipselect = (size_t)pdev->dev.platform_data;;
+	master->num_chipselect = lpc31spiSlaves;
 
 	/* Setup several work DMA buffers for dummy TX and RX data. These buffers just
 	   hold the temporary TX or RX data for the unused half of the transfer and have

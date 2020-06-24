@@ -701,7 +701,6 @@ static struct platform_device lpc313x_spi_device = {
 	.dev		= {
 		.dma_mask = &lpc313x_spi_dma_mask,
 		.coherent_dma_mask = 0xffffffffUL,
-		.platform_data = (void *) 4  //we define 4 virtual chip selects
 	},
 	.num_resources	= ARRAY_SIZE(lpc313x_spi_resources),
 	.resource	= lpc313x_spi_resources,
@@ -720,8 +719,8 @@ static int __init lpc313x_spidev_register(void)
 	static struct spi_board_info info __initdata =
 	{
 		.modalias = "spidev",
+		.chip_select = lpc31spiUserDev,
 		.max_speed_hz = 1000000,
-		.chip_select = 3,
 		.controller_data = spi_set_cs_user,
 	};
 	return spi_register_board_info(&info, 1);
@@ -746,8 +745,8 @@ static int __init lpc313x_spimtd_register(void)
 #if defined(CONFIG_MTD_DATAFLASH) || defined(CONFIG_MTD_DATAFLASH_MODULE)
 	  {
 		.modalias = "mtd_dataflash",
+		.chip_select = lpc31spiAtmelFlash,
 		.max_speed_hz = 30000000,
-		.chip_select = 1,
 		.controller_data = spi_set_cs_flash,
 		.platform_data	= &spi_flash_data,
 	  },
@@ -755,8 +754,8 @@ static int __init lpc313x_spimtd_register(void)
 #if defined(CONFIG_MTD_M25P80) || defined(CONFIG_MTD_M25P80_MODULE)
 	  {
 		.modalias = "m25p80",
-		.max_speed_hz = 30000000,
-		.chip_select = 2,  /* alias for CS0 */
+		.chip_select = lpc31spiSpansionFlash,
+		.max_speed_hz = 45000000,  //max spi speed of lpc31
 		.controller_data = spi_set_cs_flash,
 		.platform_data	= &spi_flash_data,
 	  }
@@ -866,8 +865,8 @@ static void spi_set_cs_rtc(int state)
 }
 static struct spi_board_info rtc __initdata = {
 	.modalias = "ds3234",
+	.chip_select = lpc31spiRTC,
 	.max_speed_hz = 2500000,
-	.chip_select = 0,  //these need only be unique and < number of chip selects
 	.controller_data = spi_set_cs_rtc
 };
 #endif

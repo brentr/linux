@@ -330,6 +330,20 @@ static const struct serial8250_config uart_config[] = {
 		.fcr		= UART_FCR_ENABLE_FIFO | UART_FCR_R_TRIG_10,
 		.flags		= UART_CAP_FIFO | UART_CAP_AFE,
 	},
+	[PORT_NXP16750] = {
+		.name		= "NXP16750",
+		.fifo_size	= 64,
+		.tx_loadsz	= 64,
+		.fcr		= UART_FCR_ENABLE_FIFO | UART_FCR_R_TRIG_10,
+		.flags		= UART_CAP_FIFO,
+	},
+	[PORT_XR16788] = {
+		.name		= "XR16788",
+		.fifo_size	= 64,
+		.tx_loadsz	= 64,
+		.fcr		= UART_FCR_ENABLE_FIFO,
+		.flags		= UART_CAP_FIFO | UART_EXAR7,
+	},
 };
 
 /* Uart divisor latch read */
@@ -1028,6 +1042,44 @@ static void autoconfig_16550a(struct uart_8250_port *up)
 	}
 
 	/*
+	 * Distinguish between the 16550A, the XR167xx and NXP16750
+	 * The NXP16750 will resets its scratchpad reg to 0xDF
+	 * The XR167xx resets its scratchpad reg to 0xFF and
+	 * always has at least a 64 byte deep fifo
+	 * however, we cannot check its size if the chip has already been
+	 * setup.  So, we write a known value into the XR167xx's
+	 * scratchpad register to identify it on a reboot (without H/W reset)
+	 */
+    {
+      unsigned breadcrumb = serial_in(up, UART_SCR);
+      switch (breadcrumb) {
+        case 0xff:
+          if (size_fifo(up) >= 64) {
+            serial_out(up, UART_SCR, 0x78);  //in case of warm reboot!
+        case 0x78:
+            up->capabilities |= UART_EXAR7;
+            up->port.type = PORT_XR16788;
+          }else
+            serial_out(up, UART_SCR, 0x55);  //so we don't size_fifo() again
+          return;
+
+        case 0x55:
+          break;
+
+        case 0xDF:  /* Check if it is NXP IP 3106 UART */
+		  up->port.type = PORT_NXP16750;
+		  return;
+
+        case 0x00:  /* lpc313x built-in USART resets its scratchpad to zero */
+          break;
+
+        default:
+          printk (KERN_WARNING "Unexpected UART_SCR value 0x%02x\n",breadcrumb);
+      }
+      DEBUG_AUTOCONF("scratch=0x%02x ", breadcrumb);
+    }
+
+	/*
 	 * Try writing and reading the UART_IER_UUE bit (b6).
 	 * If it works, this is probably one of the Xscale platform's
 	 * internal UARTs.
@@ -1637,6 +1689,27 @@ static int exar_handle_irq(struct uart_port *port)
 	return ret;
 }
 
+
+static void stuckIRQ(struct uart_8250_port *up, int irq)
+{
+  if (up) {
+    /* If we hit this, we've got a stuck IRQ. */
+    unsigned iir = serial_in(up, UART_IIR);
+    if (up->capabilities & UART_EXAR7 && iir & 0x1C) {
+	    printk_ratelimited(KERN_ERR
+            "ttyS%d: irq %d stuck with IIR=0x%02x (purging rcv fifo)\n",
+            up->port.line, irq, iir);
+        serial_out(up, UART_FCR,
+                    UART_FCR_ENABLE_FIFO | UART_FCR_CLEAR_RCVR);
+    }else
+	    printk_ratelimited(KERN_ERR
+            "ttyS%d: irq %d stuck with IIR=0x%02x\n",
+            up->port.line, irq, iir);
+  }else
+  	printk_ratelimited(KERN_ERR "8250: irq %d stuck\n", irq);
+}
+
+
 /*
  * This is the serial driver's interrupt routine.
  *
@@ -1654,33 +1727,28 @@ static int exar_handle_irq(struct uart_port *port)
 static irqreturn_t serial8250_interrupt(int irq, void *dev_id)
 {
 	struct irq_info *i = dev_id;
-	struct list_head *l, *end = NULL;
-	int pass_counter = 0, handled = 0;
+	struct list_head *l, *end;
+	int pass_counter = 0;
+    struct uart_8250_port *lastHandled = NULL;
 
 	DEBUG_INTR("serial8250_interrupt(%d)...", irq);
 
 	spin_lock(&i->lock);
 
-	l = i->head;
+	l = end = i->head;
 	do {
-		struct uart_8250_port *up;
-		struct uart_port *port;
-
-		up = list_entry(l, struct uart_8250_port, list);
-		port = &up->port;
+		struct uart_8250_port *up = list_entry(l, struct uart_8250_port, list);
+		struct uart_port *port = &up->port;
 
 		if (port->handle_irq(port)) {
-			handled = 1;
-			end = NULL;
-		} else if (end == NULL)
-			end = l;
+			lastHandled = up;
+			end = l->next;  //check this port again before returning
+		}
 
 		l = l->next;
 
 		if (l == i->head && pass_counter++ > PASS_LIMIT) {
-			/* If we hit this, we're dead. */
-			printk_ratelimited(KERN_ERR
-				"serial8250: too much work for irq%d\n", irq);
+			stuckIRQ(lastHandled, irq);
 			break;
 		}
 	} while (l != end);
@@ -1689,7 +1757,7 @@ static irqreturn_t serial8250_interrupt(int irq, void *dev_id)
 
 	DEBUG_INTR("end.\n");
 
-	return IRQ_RETVAL(handled);
+	return IRQ_RETVAL(lastHandled);
 }
 
 /*
@@ -2101,10 +2169,16 @@ int serial8250_do_startup(struct uart_port *port)
 		goto out;
 	}
 
+	if (up->port.type == PORT_XR16788) {
+		//RXTRG and TXRTG registers determine fifo trigger points
+		serial_out(up, 10,  24);  //refill TX fifo when <24 bytes remain
+		serial_out(up, 11,  28);  //RX interrupt when fifo has >=28 bytes
+		serial_out(up,  8,0xC6);  //+/- 24 byte auto-RTS hysterisis
+	}
 	/*
 	 * For a XR16C850, we need to set the trigger levels
 	 */
-	if (port->type == PORT_16850) {
+	else if (port->type == PORT_16850) {
 		unsigned char fctr;
 
 		serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
@@ -2506,6 +2580,13 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	serial_port_out(port, UART_IER, up->ier);
 
+    if (up->capabilities & UART_EXAR7) {
+    /*
+     * EXAR 7xx automatic hardware flow control
+     */
+        serial_out(up, 9,   //xr16788 EFR register
+          termios->c_cflag & CRTSCTS ? UART_EFR_CTS|UART_EFR_RTS : 0);
+	}else
 	if (up->capabilities & UART_CAP_EFR) {
 		unsigned char efr = 0;
 		/*
@@ -2633,7 +2714,7 @@ static unsigned int serial8250_port_size(struct uart_8250_port *pt)
 	if (is_omap1_8250(pt))
 		return 0x16 << pt->port.regshift;
 
-	return 8 << pt->port.regshift;
+	return (pt->port.type == PORT_XR16788 ? 16 : 8) << pt->port.regshift;
 }
 
 /*
@@ -3014,6 +3095,33 @@ serial8250_type(struct uart_port *port)
 		type = 0;
 	return uart_config[type].name;
 }
+
+#if 0  //for testing auto RTS handshaking
+static int serial8250_ioctl(struct uart_port *port,
+		    unsigned int cmd, unsigned long arg)
+{
+	struct uart_8250_port *up = (struct uart_8250_port *)port;
+	switch (cmd) {
+		case 0x5480:	/* enable/disable Rx interrupt, return FIFO level */
+        	switch(arg) {
+            	case 0:
+					up->ier &= ~(UART_IER_RLSI | UART_IER_RDI);
+					up->port.read_status_mask &= ~UART_LSR_DR;
+					serial_out(up, UART_IER, up->ier);
+					return 0;
+                case 1:
+					up->ier |= UART_IER_RLSI | UART_IER_RDI;
+					up->port.read_status_mask |= UART_LSR_DR;
+					serial_out(up, UART_IER, up->ier);
+                    return 0;
+                default:  //return the Rx FIFO level
+    				if (up->port.type == PORT_XR16788)
+    					return serial_in(up, 11);
+			}
+	}
+    return -ENOIOCTLCMD;
+}
+#endif
 
 static struct uart_ops serial8250_pops = {
 	.tx_empty	= serial8250_tx_empty,

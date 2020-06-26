@@ -527,7 +527,7 @@ config HARDWARE_ECC
   depends on MTD_NAND_LPC313X
   default n
   help
-      This enables the hardware ECC on Nand Flash controller,
-       Must you disable it for use with the yaffs filesystem?
+      Enables the hardware ECC and DMA on NAND Flash controller.
+	  This must be disabled for use with the YAFFS2 filesystem.
 
 endif # MTD_NAND

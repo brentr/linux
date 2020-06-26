@@ -1158,7 +1158,6 @@ static void lpc313x_nand_init_chip(struct lpc313x_nand_info *host,
 	nmtd->mtd.priv = chip;
 	nmtd->mtd.owner = THIS_MODULE;
 	chip->bbt_options |= NAND_BBT_USE_FLASH;
-	chip->options |= NAND_ROM;  //for safe testing
 
 #ifdef CONFIG_HARDWARE_ECC
 	chip->ecc.mode = NAND_ECC_HW_SYNDROME;

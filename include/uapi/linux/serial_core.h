@@ -55,7 +55,8 @@
 #define PORT_ALTR_16550_F64 27	/* Altera 16550 UART with 64 FIFOs */
 #define PORT_ALTR_16550_F128 28 /* Altera 16550 UART with 128 FIFOs */
 #define PORT_NXP16750	29	/* NXP LPC313X SoC "Standard" UART */
-#define PORT_MAX_8250	29	/* max port ID */
+#define PORT_XR16788    31
+#define PORT_MAX_8250	31	/* max port ID */
 
 /*
  * ARM specific type numbers.  These are not currently guaranteed

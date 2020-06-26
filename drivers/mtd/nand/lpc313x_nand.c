@@ -869,14 +869,14 @@ static int lpc313x_nand_read_page(struct mtd_info *mtd,
  * Read the OOB data from the device in the hardware storage format
  */
 static int lpc313x_nand_read_oob(struct mtd_info *mtd,
-										struct nand_chip *chip, int page)
+								 struct nand_chip *chip, int page)
 {
 	uint8_t *buf = chip->oob_poi;
 	int length = mtd->oobsize;
 	int chunk = chip->ecc.bytes + chip->ecc.prepad + chip->ecc.postpad;
 	int eccsize = chip->ecc.size, eccsteps = chip->ecc.steps;
 	uint8_t *bufpoi = buf;
-	int i, toread, pos, sndrnd = 1;
+	int i, toread, pos, sndrnd = 0;
 
 	chip->cmdfunc(mtd, NAND_CMD_READ0, chip->ecc.size, page);
 	for (i = eccsteps; i > 0; i--) {
@@ -915,7 +915,7 @@ static int lpc313x_nand_write_page(struct mtd_info *mtd,
 	const uint8_t *p = buf;
 	uint8_t *oob = chip->oob_poi;
 #ifdef USE_DMA
-	dma_addr_t pmapped, oobmapped;
+	dma_addr_t pmapped = 0, oobmapped = 0;
 	u32 p1 = 0, oob1 = 0;
 	int use_dma = 0;
 #endif
@@ -1101,7 +1101,6 @@ static int lpc313x_nand_add_partition(struct lpc313x_nand_info *host,
 {
 	struct mtd_info *mtd = &bmtd->mtd;
 
-#if 1  //def CONFIG_MTD_PARTITIONS
 	struct mtd_partition *partitions = NULL;
 	int num_partitions = 0;
 
@@ -1128,10 +1127,6 @@ static int lpc313x_nand_add_partition(struct lpc313x_nand_info *host,
 	}
 
 	return add_mtd_partitions(mtd, partitions, num_partitions);
-
-#else
-	return add_mtd_device(mtd);
-#endif
 }
 
 /*
@@ -1162,16 +1157,17 @@ static void lpc313x_nand_init_chip(struct lpc313x_nand_info *host,
 	nmtd->host = host;
 	nmtd->mtd.priv = chip;
 	nmtd->mtd.owner = THIS_MODULE;
-	chip->options |= NAND_BBT_USE_FLASH;
+	chip->bbt_options |= NAND_BBT_USE_FLASH;
+	chip->options |= NAND_ROM;  //for safe testing
 
 #ifdef CONFIG_HARDWARE_ECC
 	chip->ecc.mode = NAND_ECC_HW_SYNDROME;
+	chip->options |= NAND_NO_SUBPAGE_WRITE;
 	chip->ecc.strength = 5;
 	chip->ecc.read_page_raw = chip->ecc.read_page = lpc313x_nand_read_page;
 	chip->ecc.write_page = lpc313x_nand_write_page;
 	chip->ecc.write_oob = lpc313x_nand_write_oob;
-
-	chip->ecc.read_oob_raw = chip->ecc.read_oob = lpc313x_nand_read_oob;
+	chip->ecc.read_oob = lpc313x_nand_read_oob;
 	chip->ecc.calculate = lpc313x_nand_calculate_ecc;
 	chip->ecc.correct   = lpc313x_nand_correct_data;
 	chip->ecc.hwctl = lpc313x_nand_enable_hwecc;
@@ -1234,7 +1230,7 @@ static void lpc313x_nand_update_chip(struct lpc313x_nand_info *info,
 static int lpc313x_nand_probe(struct platform_device *pdev) {
 	struct lpc313x_nand_info *host = NULL;
 	struct lpc313x_nand_cfg *plat = pdev->dev.platform_data;
-	int irq, scan_res, mtdsize, i, err = 0;
+	int irq, mtdsize, i, err = 0;
 
 	/* Get required resources */
 	irq = platform_get_irq(pdev, 0);
@@ -1299,16 +1295,14 @@ static int lpc313x_nand_probe(struct platform_device *pdev) {
 
 	/* Initialize the hardware */
 	err = lpc313x_nand_inithw(host);
-	if (err != 0)
+	if (err)
 		goto exit_error;
 
 	/* Attach interrupt handler */
 	err = request_irq(host->irq, lpc313x_nandc_irq,
 		IRQF_DISABLED, "nandirq", host);
 	if (err)
-	{
 		goto exit_error;
-	}
 
 	/* IRQ event queue */
 	init_waitqueue_head(&host->irq_waitq);
@@ -1350,36 +1344,38 @@ static int lpc313x_nand_probe(struct platform_device *pdev) {
 		dev_dbg(&pdev->dev, "Initializing NAND device on CS%d (%s)\n",
 			i, host->platform->devices[i].name);
 
-		/* Populdate device callbacks used by MTD driver */
+		/* Populate device callbacks used by MTD driver */
 		lpc313x_nand_init_chip(host, &host->mtds[i]);
 
 		/* Scan NAND flash device */
-		scan_res = nand_scan_ident(&host->mtds[i].mtd, 1, NULL);
-
-		/* Continue if a device is found */
-		if (scan_res == 0) {
-			/* Update callbacks based on NAND sizing data */
-			lpc313x_nand_update_chip(host, &host->mtds[i]);
-
-			/* Post architecture MTD init */
-			nand_scan_tail(&host->mtds[i].mtd);
-
-			/* Add partitions and MTD device */
-			if (lpc313x_nand_add_partition(host, &host->mtds[i],
-				(plat->devices + i)) < 0) {
-				nand_release(&host->mtds[i].mtd);
-			}
-		}
-		else {
+		err = nand_scan_ident(&host->mtds[i].mtd, 1, NULL);
+		if (err) {
 			dev_dbg(&pdev->dev, "No device detected on CS%d (%s)\n",
 				i, host->platform->devices[i].name);
+			goto exit_error4;
+		}
+		/* Continue if a device is found */
+		/* Update callbacks based on NAND sizing data */
+		lpc313x_nand_update_chip(host, &host->mtds[i]);
+
+		/* Post architecture MTD init */
+		err = nand_scan_tail(&host->mtds[i].mtd);
+		if (err) {
+			dev_err(&pdev->dev, "nand_scan_tail err=%d\n", err);
+			goto exit_error4;
+		}
+		/* Add partitions and MTD device */
+		err=lpc313x_nand_add_partition(host, &host->mtds[i], plat->devices + i);
+		if (err) {
+			dev_err(&pdev->dev, "add_partition err=%d\n", err);
+			nand_release(&host->mtds[i].mtd);
+			goto exit_error4;
 		}
 	}
-
 	return 0;
 
-#ifdef USE_DMA
 exit_error4:
+#ifdef USE_DMA
 	/* Release sg channel */
 	dma_release_sg_channel(host->dma_chn);
 

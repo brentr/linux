@@ -634,6 +634,7 @@ config ARCH_LPC313X
         select LEDS_GPIO_REGISTER
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
+#        select GENERIC_IRQ_SHOW_LEVEL
 	select CPU_ARM926T
         select IRQ_DOMAIN
        help

@@ -270,8 +270,8 @@ lpc313x_usb_brd.vbus_ovrc_irq =
 
 		/* request overcurrent IRQ  */
 		if(lpc313x_usb_brd.vbus_ovrc_irq >= 0) {
-			retval = request_irq( lpc313x_usb_brd.vbus_ovrc_irq, lpc313x_vbus_ovrc_irq,
-					      IRQF_DISABLED, "VBUSOVR",
+			retval = request_irq(lpc313x_usb_brd.vbus_ovrc_irq, lpc313x_vbus_ovrc_irq,
+					      IRQF_DISABLED, "USBoverCurrent",
 					      &lpc313x_usb_brd);
 
 			if ( retval )

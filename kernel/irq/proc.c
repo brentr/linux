@@ -474,26 +474,33 @@ int show_interrupts(struct seq_file *p, void *v)
 		if (desc->irq_data.chip->irq_print_chip)
 			desc->irq_data.chip->irq_print_chip(&desc->irq_data, p);
 		else if (desc->irq_data.chip->name)
-			seq_printf(p, " %8s", desc->irq_data.chip->name);
+			seq_printf(p, " %12s", desc->irq_data.chip->name);
 		else
-			seq_printf(p, " %8s", "-");
+			seq_printf(p, " %12s", "-");
 	} else {
-		seq_printf(p, " %8s", "None");
+		seq_printf(p, " %12s", "None");
 	}
 	if (desc->irq_data.domain)
 		seq_printf(p, " %*d", prec, (int) desc->irq_data.hwirq);
 #ifdef CONFIG_GENERIC_IRQ_SHOW_LEVEL
-	seq_printf(p, " %-8s", irqd_is_level_type(&desc->irq_data) ? "Level" : "Edge");
+	{
+		const char *invalid = "INVALID";
+		const char *triggerTypeName[] = {
+			"None", "Rising", "Falling", "Edge",
+			"High", invalid, invalid, invalid, "Low"};
+		u32 trigger = irqd_get_trigger_type(&desc->irq_data);
+		seq_printf(p, "%8s", trigger >= ARRAY_SIZE(triggerTypeName) ?
+			invalid : triggerTypeName[trigger] );
+	}
 #endif
 	if (desc->name)
-		seq_printf(p, "-%-8s", desc->name);
+		seq_printf(p, "-%-6s", desc->name);
 
 	if (action) {
 		seq_printf(p, "  %s", action->name);
 		while ((action = action->next) != NULL)
 			seq_printf(p, ", %s", action->name);
 	}
-
 	seq_putc(p, '\n');
 out:
 	raw_spin_unlock_irqrestore(&desc->lock, flags);

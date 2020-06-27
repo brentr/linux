@@ -25,8 +25,6 @@
 #ifndef __ASM_ARCH_IRQS_H
 #define __ASM_ARCH_IRQS_H
 
-
-
 # define IRQ_EVT_ROUTER0  1        /*interrupts from Event router 0*/
 # define IRQ_EVT_ROUTER1  2        /*interrupts from Event router 1*/
 # define IRQ_EVT_ROUTER2  3        /*interrupts from Event router 2*/
@@ -55,7 +53,6 @@
 # define IRQ_USB          27       /*USB irq */
 # define IRQ_ISRAM0       28       /*ISRAM0 irq */
 # define IRQ_ISRAM1       29       /*ISRAM1 irq */
-
 
 # define NR_IRQ_CPU	  30	/* IRQs directly recognized by CPU */
 
@@ -91,15 +88,18 @@
 	{IRQ_RTC, EVT_AD_NINT_I, EVT_ACTIVE_LOW}, \
 	{IRQ_PLAY, EVT_PLAY_DET_I, EVT_ACTIVE_HIGH}, \
 
-#define CHIP_IRQ_EVENT_MAP   _INTERNAL_IRQ_EVENT_MAP \
-	AD_IRQ_EVENT_MAP 
+#define CHIP_IRQ_EVENT_MAP \
+	_INTERNAL_IRQ_EVENT_MAP \
+	AD_IRQ_EVENT_MAP
 
-#else
+#else  //not LPC3152_AD
+
 #define CHIP_IRQ_EVENT_MAP   _INTERNAL_IRQ_EVENT_MAP
 #define NR_IRQ_CHIP_EVT	     4
+
 #endif
 
-/* now compute the board start IRQ number */
+/* the lowest board specific IRQ number */
 #define IRQ_BOARD_START   (NR_IRQ_CPU + NR_IRQ_CHIP_EVT)
 
 /* Route all internal chip events to IRQ_EVT_ROUTER0 */
@@ -107,7 +107,7 @@
 #define IRQ_EVTR0_END          (IRQ_BOARD_START - 1)
 
 
-#if defined (CONFIG_MACH_VAL3153) 
+#if defined (CONFIG_MACH_VAL3153)
 
 # define IRQ_CS8900_ETH_INT  IRQ_BOARD_START	/* Ethernet chip */
 # define IRQ_SDMMC_CD0       (IRQ_BOARD_START + 1)	/* SD card detect */
@@ -122,7 +122,7 @@
 	{IRQ_SDMMC_CD1, EVT_GPIO13, EVT_ACTIVE_HIGH}, \
 	}
 /* Following defines group the board IRQs into 4 IRQ_EVNTR groups.
-   IRQ_EVT_ROUTERx IRQ is generated when event in the corresponding 
+   IRQ_EVT_ROUTERx IRQ is generated when event in the corresponding
    group triggers.
 */
 #define IRQ_EVTR1_START        IRQ_CS8900_ETH_INT
@@ -134,6 +134,7 @@
 
 
 #elif defined (CONFIG_MACH_EA313X) || defined(CONFIG_MACH_EA3152)
+
 # define IRQ_DM9000_ETH_INT   IRQ_BOARD_START	/* Ethernet chip */
 # define IRQ_SDMMC_CD         (IRQ_BOARD_START + 1)	/* SD card detect */
 # define IRQ_EA_VBUS_OVRC     (IRQ_BOARD_START + 2)	/* Over current indicator */
@@ -150,7 +151,7 @@
 }
 
 /* Following defines group the board IRQs into 4 IRQ_EVNTR groups.
-   IRQ_EVT_ROUTERx IRQ is generated when event in the corresponding 
+   IRQ_EVT_ROUTERx IRQ is generated when event in the corresponding
    group triggers.
 */
 #define IRQ_EVTR1_START        IRQ_DM9000_ETH_INT
@@ -160,7 +161,9 @@
 #define IRQ_EVTR3_START        IRQ_XR16788_INT
 #define IRQ_EVTR3_END          IRQ_XR16788_INT
 
+
 #elif defined (CONFIG_MACH_VAL3154)
+
 # define IRQ_SDMMC_CD	 IRQ_BOARD_START 	/* SD card detect */
 # define NR_IRQ_BOARD	 1
 
@@ -170,7 +173,7 @@
 	{IRQ_SDMMC_CD, EVT_mI2STX_BCK0, EVT_ACTIVE_LOW}, \
 	}
 /* Following defines group the board IRQs into 4 IRQ_EVNTR groups.
-   IRQ_EVT_ROUTERx IRQ is generated when event in the corresponding 
+   IRQ_EVT_ROUTERx IRQ is generated when event in the corresponding
    group triggers.
 */
 #define IRQ_EVTR1_START        IRQ_SDMMC_CD
@@ -181,6 +184,7 @@
 #define IRQ_EVTR3_END          0
 
 #else
+
 # define NR_IRQ_BOARD          0
 #define IRQ_EVTR0_START        0
 #define IRQ_EVTR0_END          0

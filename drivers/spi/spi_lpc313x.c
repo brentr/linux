@@ -752,7 +752,7 @@ static int __init lpc313x_spi_probe(struct platform_device *pdev)
 	cgu_soft_reset_module(SPI_PNRES_IP_SOFT);
 
 	ret = request_irq(spidat->irq, lpc313x_spi_irq,
-		IRQF_DISABLED, "spiirq", spidat);
+		IRQF_DISABLED, "SPI", spidat);
 	if (ret)
 	{
 		ret = -EBUSY;

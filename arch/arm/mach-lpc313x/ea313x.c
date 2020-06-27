@@ -495,7 +495,6 @@ static void __init ea_add_device_ks8851(u32 ignored) {}
 	}
 
 static struct plat_serial8250_port exar_data[] = {
-#if 0
 	XRport(0x00),
 	XRport(0x10),
 	XRport(0x20),
@@ -504,7 +503,6 @@ static struct plat_serial8250_port exar_data[] = {
 	XRport(0x50),
 	XRport(0x60),
 	XRport(0x70),
-#endif
 	{ },
 };
 
@@ -845,7 +843,7 @@ static void __init init_irq(void)
     boardID = (GPIO_STATE(IOCONF_FAST_GPIO)>>firstSerialGPIO)&allSerialChannels;
   if (mbariBoard(boardID)) {
     replace_irq(IRQ_DM9000_ETH_INT, EVT_GPIO3, EVT_ACTIVE_LOW);
-    replace_irq(IRQ_EA_VBUS_OVRC, EVT_NAND_NCS_2, EVT_ACTIVE_LOW);
+    replace_irq(IRQ_EA_VBUS_OVRC, EVT_NAND_NCS_2, EVT_FALLING_EDGE);
     if (boardID & 0xff) //PC/104 carrier with octal USART on the ESP2G baseboard
       replace_irq(IRQ_XR16788_INT, XR_EVT, EVT_RISING_EDGE);
     else         //ESP 3G with on board octal USART

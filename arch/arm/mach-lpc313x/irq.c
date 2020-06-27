@@ -182,7 +182,7 @@ static int evt_set_wake(struct irq_data *d, unsigned value)
 
 
 static struct irq_chip lpc313x_evtr_chip = {
-	.name = "EVENTROUTER",
+	.name = "EventRouter",
 	.irq_ack = evt_ack_irq,
 	.irq_mask = evt_mask_irq,
 	.irq_mask_ack = evt_mask_ack_irq,
@@ -279,7 +279,7 @@ void __init lpc313x_init_irq(void)
 			INTC_REQ_WE_PRIO_LVL;
 
 		irq_set_chip_and_handler(irq, &lpc313x_internal_chip, handle_level_irq);
-		set_irq_flags(irq, IRQF_VALID);
+		irq_set_status_flags(irq, IRQ_TYPE_LEVEL_HIGH | IRQ_LEVEL);
 	}
 	if (!irq_domain_add_legacy(NULL, NR_IRQ_CPU, 0, 0,
 	      &irq_domain_simple_ops, NULL))
@@ -290,43 +290,8 @@ void __init lpc313x_init_irq(void)
 		/* compute bank & bit position for the event_pin */
 		bank = EVT_GET_BANK(irq_2_event[irq - IRQ_EVT_START].event_pin);
 		bit_pos = irq_2_event[irq - IRQ_EVT_START].event_pin & 0x1F;
-//		printk("irq=%d Event=0x%x bank:%d bit:%d type:%d\r\n", irq,
-//			irq_2_event[irq - IRQ_EVT_START].event_pin, bank,
-//			bit_pos, irq_2_event[irq - IRQ_EVT_START].type);
-		irq_set_chip(irq, &lpc313x_evtr_chip);
-		set_irq_flags(irq, IRQF_VALID);
 		mask = _BIT(bit_pos);
-		/* configure the interrupt senstivity */
-		switch (irq_2_event[irq - IRQ_EVT_START].type) {
-			case EVT_ACTIVE_LOW:
-				EVRT_APR(bank) &= ~mask;
-				EVRT_ATR(bank) &= ~mask;
-				irq_set_handler(irq, handle_level_irq);
-				break;
-			case EVT_ACTIVE_HIGH:
-				EVRT_APR(bank) |= mask;
-				EVRT_ATR(bank) &= ~mask;
-				irq_set_handler(irq, handle_level_irq);
-				break;
-			case EVT_FALLING_EDGE:
-				EVRT_APR(bank) &= ~mask;
-				EVRT_ATR(bank) |= mask;
-				irq_set_handler(irq, handle_edge_irq);
-				break;
-			case EVT_RISING_EDGE:
-				EVRT_APR(bank) |= mask;
-				EVRT_ATR(bank) |= mask;
-				irq_set_handler(irq, handle_edge_irq);
-				break;
-			default:
-				printk(KERN_WARNING "Invalid Event type.\n");
-                        case EVT_IGNORE:
-				continue;
-		}
-		printk(KERN_INFO "irq=%d Event=0x%x bank:%d bit:%d type:%d\n",
-			irq, irq_2_event[irq - IRQ_EVT_START].event_pin, bank,
-			bit_pos, irq_2_event[irq - IRQ_EVT_START].type);
-
+		irq_set_chip(irq, &lpc313x_evtr_chip);
 		if ( (irq >= IRQ_EVTR0_START) && (irq <= IRQ_EVTR0_END) ) {
 			/* enable routing to vector 0 */
 			EVRT_OUT_MASK_SET(0, bank) = mask;
@@ -339,9 +304,45 @@ void __init lpc313x_init_irq(void)
 		} else if ( (irq >= IRQ_EVTR3_START) && (irq <= IRQ_EVTR3_END) ) {
 			/* enable routing to vector 3 */
 			EVRT_OUT_MASK_SET(3, bank) = mask;
-		} else {
+		} else
 			printk(KERN_WARNING "Invalid Event router setup.\n");
+		/* configure the interrupt senstivity */
+		switch (irq_2_event[irq - IRQ_EVT_START].type) {
+			case EVT_ACTIVE_LOW:
+				EVRT_APR(bank) &= ~mask;
+				EVRT_ATR(bank) &= ~mask;
+				irq_set_handler(irq, handle_level_irq);
+				irq_set_status_flags(irq, IRQ_TYPE_LEVEL_LOW | IRQ_LEVEL);
+				break;
+			case EVT_ACTIVE_HIGH:
+				EVRT_APR(bank) |= mask;
+				EVRT_ATR(bank) &= ~mask;
+				irq_set_handler(irq, handle_level_irq);
+				irq_set_status_flags(irq, IRQ_TYPE_LEVEL_HIGH | IRQ_LEVEL);
+				break;
+			case EVT_FALLING_EDGE:
+				EVRT_APR(bank) &= ~mask;
+				EVRT_ATR(bank) |= mask;
+				irq_set_handler(irq, handle_edge_irq);
+				irq_set_status_flags (irq, IRQ_TYPE_EDGE_FALLING);
+				break;
+			case EVT_RISING_EDGE:
+				EVRT_APR(bank) |= mask;
+				EVRT_ATR(bank) |= mask;
+				irq_set_handler(irq, handle_edge_irq);
+				irq_set_status_flags(irq, IRQ_TYPE_EDGE_RISING);
+				break;
+			default:
+				printk(KERN_WARNING "Invalid Event type for irq #%u\n", irq);
+			case EVT_IGNORE:
+				continue;
 		}
+		printk(KERN_INFO
+				"irq%d: Event:0x%x bank:%d bit:%d type:%d status:0x%02x\n",
+			irq, irq_2_event[irq - IRQ_EVT_START].event_pin, bank,
+			bit_pos, irq_2_event[irq - IRQ_EVT_START].type,
+			irq_to_desc(irq)->irq_data.state_use_accessors);
+
 	}
 	/* for power management. Wake from internal irqs */
 	EVRT_APR(3) &= ~_BIT(12);
@@ -376,7 +377,7 @@ void __init lpc313x_init_irq(void)
 
 	if (!irq_domain_add_legacy(NULL, NR_IRQS - IRQ_EVT_START, IRQ_EVT_START, 0,
 	      &irq_domain_simple_ops, NULL))
-		panic("Unable to add EVENTROUTER irq domain\n");
+		panic("Unable to add EventRouter irq domain\n");
 }
 
 

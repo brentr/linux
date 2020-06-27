@@ -1299,7 +1299,7 @@ static int lpc313x_nand_probe(struct platform_device *pdev) {
 
 	/* Attach interrupt handler */
 	err = request_irq(host->irq, lpc313x_nandc_irq,
-		IRQF_DISABLED, "nandirq", host);
+		IRQF_DISABLED, "NAND", host);
 	if (err)
 		goto exit_error;
 

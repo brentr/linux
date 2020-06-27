@@ -906,6 +906,7 @@ static ssize_t oom_adj_write(struct file *file, const char __user *buf,
 		goto err_sighand;
 	}
 
+#if 0
 	/*
 	 * /proc/pid/oom_adj is provided for legacy purposes, ask users to use
 	 * /proc/pid/oom_score_adj instead.
@@ -913,6 +914,7 @@ static ssize_t oom_adj_write(struct file *file, const char __user *buf,
 	pr_warn_once("%s (%d): /proc/%d/oom_adj is deprecated, please use /proc/%d/oom_score_adj instead.\n",
 		  current->comm, task_pid_nr(current), task_pid_nr(task),
 		  task_pid_nr(task));
+#endif
 
 	task->signal->oom_score_adj = oom_adj;
 	trace_oom_score_adj_update(task);
@@ -2113,7 +2115,7 @@ out:
 	return -ENOENT;
 }
 
-static struct dentry *proc_pident_lookup(struct inode *dir, 
+static struct dentry *proc_pident_lookup(struct inode *dir,
 					 struct dentry *dentry,
 					 const struct pid_entry *ents,
 					 unsigned int nents)
@@ -2258,7 +2260,7 @@ static const struct pid_entry attr_dir_stuff[] = {
 
 static int proc_attr_dir_readdir(struct file *file, struct dir_context *ctx)
 {
-	return proc_pident_readdir(file, ctx, 
+	return proc_pident_readdir(file, ctx,
 				   attr_dir_stuff, ARRAY_SIZE(attr_dir_stuff));
 }
 

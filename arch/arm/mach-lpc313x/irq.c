@@ -324,7 +324,7 @@ void __init lpc313x_init_irq(void)
 				EVRT_APR(bank) &= ~mask;
 				EVRT_ATR(bank) |= mask;
 				irq_set_handler(irq, handle_edge_irq);
-				irq_set_status_flags (irq, IRQ_TYPE_EDGE_FALLING);
+				irq_set_status_flags(irq, IRQ_TYPE_EDGE_FALLING);
 				break;
 			case EVT_RISING_EDGE:
 				EVRT_APR(bank) |= mask;
@@ -338,10 +338,9 @@ void __init lpc313x_init_irq(void)
 				continue;
 		}
 		printk(KERN_INFO
-				"irq%d: Event:0x%x bank:%d bit:%d type:%d status:0x%02x\n",
+				"irq%d: Event:0x%x bank:%d bit:%d type:%d\n",
 			irq, irq_2_event[irq - IRQ_EVT_START].event_pin, bank,
-			bit_pos, irq_2_event[irq - IRQ_EVT_START].type,
-			irq_to_desc(irq)->irq_data.state_use_accessors);
+			bit_pos, irq_2_event[irq - IRQ_EVT_START].type);
 
 	}
 	/* for power management. Wake from internal irqs */

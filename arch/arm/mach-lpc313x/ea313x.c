@@ -672,12 +672,7 @@ static struct mtd_partition nor_spi_flash_partitions[] = {
 	{
 		.name	= "lpc31nor-bootenv",
 		.offset	= MTDPART_OFS_APPEND,
-		.size	= 16*1024
-	},
-	{
-		.name	= "lpc31nor-unused",
-		.offset	= MTDPART_OFS_APPEND,
-		.size	= 48*1024
+		.size	= 64*1024
 	},
 	{
 		.name	= "lpc31nor-kernel",
@@ -744,7 +739,7 @@ static int __init lpc313x_spimtd_register(void)
 	  {
 		.modalias = "mtd_dataflash",
 		.chip_select = lpc31spiAtmelFlash,
-		.max_speed_hz = 33*1000*1000,  //max spi speed of lpc31
+		.max_speed_hz = 12*1000*1000,  //faster is not reliable on EA3141 board
 		.controller_data = spi_set_cs_flash,
 		.platform_data	= &spi_flash_data,
 	  },
@@ -753,7 +748,7 @@ static int __init lpc313x_spimtd_register(void)
 	  {
 		.modalias = "m25p80",
 		.chip_select = lpc31spiSpansionFlash,
-		.max_speed_hz = 33*1000*1000,
+		.max_speed_hz = 12*1000*1000,
 		.controller_data = spi_set_cs_flash,
 		.platform_data	= &spi_flash_data,
 	  }

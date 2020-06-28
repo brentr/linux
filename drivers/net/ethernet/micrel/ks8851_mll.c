@@ -382,13 +382,13 @@ static const u16 pmModes[] = {
   PMECR_PM_POWERSAVE,
   PMECR_PM_ENERGY | PMECR_AUTO_WAKE_EN
 };
-static int pmMode = PMECR_PM_POWERSAVE;  /* default to POWERSAVE */
+static ushort pmMode = PMECR_PM_POWERSAVE;  /* default to POWERSAVE */
 
 /**
  * Set the force mode to half duplex, default is full duplex,
  * because, if the auto-negotiation fails, most switches use half-duplex.
  */
-static u16 p1cr = 0xff & ~P1CR_FORCEFDX;  /* Port 1 Control Register mask */
+static ushort p1cr = 0xff & ~P1CR_FORCEFDX;  /* Port 1 Control Register mask */
 
 
 /**
@@ -462,10 +462,10 @@ struct ks_net {
 	struct mii_if_info	mii;
 	struct type_frame_head	*frame_head_info;
 	spinlock_t		statelock;
-	u32			msg_enable;
 	u32			frame_cnt;
-	int			bus_width;
+	ushort		bus_width;
 
+	ushort		msg_enable;
 	u16			rc_rxqcr;
 	u16			rc_txcr;
 	u16			rc_ier;
@@ -483,7 +483,7 @@ struct ks_net {
 	u8			enabled;
 };
 
-static int msg_enable;
+static ushort msg_enable;
 
 #define BE3             0x8000      /* Byte Enable 3 */
 #define BE2             0x4000      /* Byte Enable 2 */
@@ -978,10 +978,10 @@ static int ks_net_open(struct net_device *netdev)
 	netif_start_queue(ks->netdev);
 
   /* switch to selected power saving mode */
-  if (pmMode >= ARRAY_SIZE(pmModes))
-    pmMode=0;
+	if (pmMode >= ARRAY_SIZE(pmModes))
+		pmMode=0;
 	ks_set_powermode(ks, pmModes[pmMode]);
-	netif_dbg(ks, ifup, ks->netdev, "network device up\n");
+	netdev_info(ks->netdev, "UP (power=%u, p1cr=0x%04x)\n", pmMode, p1cr);
 	return 0;
 }
 
@@ -1015,6 +1015,7 @@ static int ks_net_stop(struct net_device *netdev)
 	ks_set_powermode(ks, PMECR_PM_SOFTDOWN);
 	free_irq(netdev->irq, netdev);
 	mutex_unlock(&ks->lock);
+	netdev_info(ks->netdev, "DOWN\n");
 	return 0;
 }
 
@@ -1484,16 +1485,14 @@ static int ks_read_selftest(struct ks_net *ks)
 	}
 
 	if (rd & MBIR_TXMBFA) {
-		netdev_err(ks->netdev, "TX memory selftest fails\n");
+		netdev_err(ks->netdev, "TX memory selftest failed\n");
 		ret |= 1;
 	}
 
 	if (rd & MBIR_RXMBFA) {
-		netdev_err(ks->netdev, "RX memory selftest fails\n");
+		netdev_err(ks->netdev, "RX memory selftest failed\n");
 		ret |= 2;
 	}
-
-	netdev_info(ks->netdev, "passed selftest\n");
 	return ret;
 }
 
@@ -1655,7 +1654,6 @@ static int ks8851_probe(struct platform_device *pdev)
 	if (err)
 		goto err_register;
 
-	netdev_info(netdev, "message enable is %d\n", msg_enable);
 	/* set the default message enable */
 	ks->msg_enable = netif_msg_init(msg_enable, (NETIF_MSG_DRV |
 						     NETIF_MSG_PROBE |
@@ -1709,7 +1707,7 @@ static int ks8851_probe(struct platform_device *pdev)
 		eth_random_addr(ks->mac_addr);
 		netdev_info(netdev, "Using random mac address\n");
 	}
-	netdev_info(netdev, "Mac address is: %pM\n", ks->mac_addr);
+	netdev_info(netdev, "MAC address: %pM\n", ks->mac_addr);
 	memcpy(netdev->dev_addr, ks->mac_addr, ETH_ALEN);
 	ks_set_mac(ks, netdev->dev_addr);
 	/* set powermode to soft power down to save power */
@@ -1769,9 +1767,9 @@ MODULE_LICENSE("GPL");
 module_param(p1cr, ushort, 0644);
 MODULE_PARM_DESC(p1cr,
   "Mask written to Port 1 Control Register (see datasheet p69)");
-module_param_named(message, msg_enable, int, 0644);
+module_param_named(message, msg_enable, ushort, 0644);
 MODULE_PARM_DESC(message, "Message verbosity level (0=none, 31=all)");
-module_param_named(power, pmMode, int, 0644);
+module_param_named(power, pmMode, ushort, 0644);
 MODULE_PARM_DESC(power, "Power management (0=none, 1=saver, 2=agressive)");
 module_param_string(mac, MACstring, sizeof(MACstring), 0);
 MODULE_PARM_DESC(mac,

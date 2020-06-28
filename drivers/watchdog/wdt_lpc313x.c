@@ -310,7 +310,7 @@ static int lpc313x_wdt_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int lpc313x_wdt_remove(struct platform_device *pdev)
+static int __exit lpc313x_wdt_remove(struct platform_device *pdev)
 {
 	struct lpc313x_wdt *wdt = &lpc313x_wdt;
 
@@ -324,10 +324,10 @@ static int lpc313x_wdt_remove(struct platform_device *pdev)
 
 static struct platform_driver lpc313x_wdt_driver = {
 	.probe = lpc313x_wdt_probe,
-	.remove = lpc313x_wdt_remove,
+	.remove = __exit_p(lpc313x_wdt_remove),
 	.driver = {
 		   .owner = THIS_MODULE,
-		   .name = "lpc31-wdt",
+		   .name = "lpc313x-wdt",
 		   },
 };
 

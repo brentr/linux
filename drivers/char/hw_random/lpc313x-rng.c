@@ -41,8 +41,8 @@ static int lpc313x_rng_data_read(struct hwrng *rng, u32 * data)
 }
 
 static struct hwrng lpc313x_rng = {
-	.name		= "lpc31",
-	.data_read	  = lpc313x_rng_data_read,
+	.name	= "lpc31",
+	.data_read = lpc313x_rng_data_read,
 };
 
 static void lpc313x_rng_endis_ring_clocks(int enable)
@@ -59,7 +59,7 @@ static void lpc313x_rng_endis_bus_clock(int enable)
 	cgu_clk_en_dis(CGU_SB_RNG_PCLK_ID, enable);
 }
 
-static int __init lpc313x_rng_probe(struct platform_device *pdev)
+static int lpc313x_rng_probe(struct platform_device *pdev)
 {
 	struct resource *res, *mem;
 	int ret;
@@ -147,7 +147,7 @@ static int lpc313x_rng_resume(struct platform_device *pdev)
 
 static struct platform_driver lpc313x_rng_driver = {
 	.driver = {
-		   .name = "lpc31-rng",
+		   .name = "lpc313x-rng",
 		   .owner = THIS_MODULE,
 		   },
 	.probe   = lpc313x_rng_probe,

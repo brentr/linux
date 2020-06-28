@@ -172,12 +172,12 @@ static struct lpc313x_nand_cfg val3153_plat_nand = {
 
 static u64 nand_dmamask = 0xffffffffUL;
 static struct platform_device	lpc313x_nand_device = {
-	.name		= "lpc31_nand",
-	.dev		= {
-		.dma_mask		= &nand_dmamask,
-		.coherent_dma_mask	= 0xffffffff,
-				.platform_data	= &val3153_plat_nand,
-	},
+		.name		= "lpc31_nand",
+		.dev		= {
+			.dma_mask		= &nand_dmamask,
+			.coherent_dma_mask	= 0xffffffff,
+			.platform_data	= &val3153_plat_nand,
+		},
 	.num_resources	= ARRAY_SIZE(lpc313x_nand_resources),
 	.resource	= lpc313x_nand_resources,
 };

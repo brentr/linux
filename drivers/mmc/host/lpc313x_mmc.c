@@ -1402,7 +1402,7 @@ static void lpc313x_mci_cleanup_slot(struct lpc313x_mci_slot *slot,
 }
 
 
-static int lpc313x_mci_probe(struct platform_device *pdev)
+static int __init lpc313x_mci_probe(struct platform_device *pdev)
 {
 	struct lpc313x_mci		*host;
 	struct resource			*regs;

@@ -271,7 +271,7 @@ void __attribute__((weak)) calibration_delay_done(void)
 {
 }
 
-void calibrate_delay(void)
+void __init calibrate_delay(void)
 {
 	unsigned long lpj;
 	static bool printed;

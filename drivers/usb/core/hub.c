@@ -2279,7 +2279,6 @@ static int usb_enumerate_device_otg(struct usb_device *udev)
 		}
 	}
 #endif
-fail:
 	return err;
 }
 

@@ -21,7 +21,6 @@ static struct usb_device_id whitelist_table [] = {
 /* hubs are optional in OTG, but very handy ... */
 { USB_DEVICE_INFO(USB_CLASS_HUB, 0, 0), },
 { USB_DEVICE_INFO(USB_CLASS_HUB, 0, 1), },
-{ USB_DEVICE_INFO(USB_CLASS_HUB, 0, 2), },
 
 #ifdef	CONFIG_USB_PRINTER		/* ignoring nonstatic linkage! */
 /* FIXME actually, printers are NOT supposed to use device classes;
@@ -43,6 +42,7 @@ static struct usb_device_id whitelist_table [] = {
 /* gadget zero, for testing */
 { USB_DEVICE(0x0525, 0xa4a0), },
 #endif
+
 { }	/* Terminating entry */
 };
 
@@ -54,13 +54,6 @@ static int is_targeted(struct usb_device *dev)
 	if ((le16_to_cpu(dev->descriptor.idVendor) == 0x1a0a &&
 	     le16_to_cpu(dev->descriptor.idProduct) == 0xbadd))
 		return 0;
-#endif
-
-#if defined(CONFIG_USB_EHCI_EHSET)
-	if ((le16_to_cpu(dev->descriptor.idVendor) == 0x1a0a))
-		return 1;
-
-#endif
 
 	/* OTG PET device is always targeted (see OTG 2.0 ECN 6.4.2) */
 	if ((le16_to_cpu(dev->descriptor.idVendor) == 0x1a0a &&

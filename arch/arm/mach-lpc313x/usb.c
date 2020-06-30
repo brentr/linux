@@ -40,7 +40,6 @@
 #include <linux/irq.h>
 
 #include <asm/irq.h>
-#include <asm/system.h>
 #include <mach/board.h>
 #include <mach/gpio.h>
 

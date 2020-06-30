@@ -1582,7 +1582,7 @@ static int __init parseMAC(u8 *mac, const char *cursor, unsigned id)
   return id || (u8)(*end)>' ';
 }
 
-static char __init MACstring[120];
+static char __initdata MACstring[120];
 
 #if defined(CONFIG_OF)
 static const struct of_device_id ks8851_ml_dt_ids[] = {
@@ -1749,14 +1749,14 @@ static int __exit ks8851_remove(struct platform_device *pdev)
 
 }
 
-static struct platform_driver ks8851_platform_driver = {
+static struct platform_driver __refdata ks8851_platform_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.owner = THIS_MODULE,
 		.of_match_table	= of_match_ptr(ks8851_ml_dt_ids),
 	},
 	.probe = ks8851_probe,
-	.remove = exit_p(ks8851_remove),
+	.remove = __exit_p(ks8851_remove),
 };
 
 module_platform_driver(ks8851_platform_driver);

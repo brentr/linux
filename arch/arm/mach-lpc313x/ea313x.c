@@ -32,7 +32,6 @@
 #include <linux/spi/flash.h>
 #include <linux/serial_8250.h>
 
-#include <asm/system.h>
 #include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/pgtable.h>

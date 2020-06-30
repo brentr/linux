@@ -3842,6 +3842,7 @@ int nand_scan_ident(struct mtd_info *mtd, int maxchips,
 }
 EXPORT_SYMBOL(nand_scan_ident);
 
+#ifndef CONFIG_DISABLE_ECC_STRENGTH_CHECK
 /*
  * Check if the chip configuration meet the datasheet requirements.
 
@@ -3875,6 +3876,7 @@ static bool nand_ecc_strength_good(struct mtd_info *mtd)
 
 	return corr >= ds_corr && ecc->strength >= chip->ecc_strength_ds;
 }
+#endif
 
 /**
  * nand_scan_tail - [NAND Interface] Scan for the NAND device
@@ -4092,10 +4094,12 @@ int nand_scan_tail(struct mtd_info *mtd)
 	mtd->oobavail = ecc->layout->oobavail;
 
 	/* ECC sanity check: warn if it's too weak */
+#ifndef CONFIG_DISABLE_ECC_STRENGTH_CHECK
+ //we should use BCH, but that would break all existing NAND filesystems
 	if (!nand_ecc_strength_good(mtd))
 		pr_warn("WARNING: %s: the ECC used on your system is too weak compared to the one required by the NAND chip\n",
 			mtd->name);
-
+#endif
 	/*
 	 * Set the number of read / write steps for one page depending on ECC
 	 * mode.

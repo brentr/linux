@@ -18,9 +18,9 @@ detect_indent_width=true
 indent_mode=2
 
 [project]
-name=linux-3.14.30
+name=linux
 base_path=./
-description=Linux Kernel version 3.14.30 for NXP LPC31xx
+description=Linux Kernel (for NXP LPC31xx)
 file_patterns=*.c;*.h;
 
 [long line marker]

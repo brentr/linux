@@ -1162,7 +1162,7 @@ static void lpc313x_nand_init_chip(struct lpc313x_nand_info *host,
 #ifdef CONFIG_HARDWARE_ECC
 	chip->ecc.mode = NAND_ECC_HW_SYNDROME;
 	chip->options |= NAND_NO_SUBPAGE_WRITE;
-	chip->ecc.strength = 5;
+	chip->ecc.strength = 4;
 	chip->ecc.read_page_raw = chip->ecc.read_page = lpc313x_nand_read_page;
 	chip->ecc.write_page = lpc313x_nand_write_page;
 	chip->ecc.write_oob = lpc313x_nand_write_oob;

@@ -273,7 +273,7 @@ int __init lpc313x_init(void)
 #if defined(CONFIG_SERIAL_8250_CONSOLE)
 static int __init lpc313x_init_console(void)
 {
-	static __initdata char serr[] =
+	static __initconst char serr[] =
 		KERN_ERR "Serial port #%u setup failed\n";
 	struct uart_port up;
 	int mul, div;

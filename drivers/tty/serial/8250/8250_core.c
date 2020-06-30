@@ -3375,7 +3375,7 @@ static struct console serial8250_console = {
 	.device		= uart_console_device,
 	.setup		= serial8250_console_setup,
 	.early_setup	= serial8250_console_early_setup,
-	.flags		= CON_PRINTBUFFER | CON_ANYTIME,
+	.flags		= CON_ANYTIME,  //see https://lkml.org/lkml/2019/11/6/1277
 	.index		= -1,
 	.data		= &serial8250_reg,
 };

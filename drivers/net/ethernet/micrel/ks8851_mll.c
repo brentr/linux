@@ -1082,8 +1082,8 @@ static int ks_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 		netdev->stats.tx_bytes += skb->len;
 		netdev->stats.tx_packets++;
 		dev_kfree_skb(skb);
-	} else
-		retv = NETDEV_TX_BUSY;
+	} else if (ks_rdreg16(ks, KS_P1SR) & P1SR_LINK_GOOD)
+		retv = NETDEV_TX_BUSY;  //silently drop packet if link is not good
 	spin_unlock(&ks->statelock);
 	ks_enable_int(ks);
 	enable_irq(netdev->irq);

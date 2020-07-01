@@ -661,7 +661,7 @@ retry:
 		if (r == &nonblocking_pool) {
 			prandom_reseed_late();
 			wake_up_interruptible(&urandom_init_wait);
-			pr_notice("random: %s pool is initialized\n", r->name);
+			pr_info("random: %s pool is initialized\n", r->name);
 		}
 	}
 
@@ -1238,7 +1238,7 @@ void get_random_bytes(void *buf, int nbytes)
 {
 #if DEBUG_RANDOM_BOOT > 0
 	if (unlikely(nonblocking_pool.initialized == 0))
-		printk(KERN_NOTICE "random: %pF get_random_bytes called "
+		printk(KERN_INFO "random: %pF get_random_bytes called "
 		       "with %d bits of entropy available\n",
 		       (void *) _RET_IP_,
 		       nonblocking_pool.entropy_total);
@@ -1269,7 +1269,7 @@ void get_random_bytes_arch(void *buf, int nbytes)
 
 		if (!arch_get_random_long(&v))
 			break;
-		
+
 		memcpy(p, &v, chunk);
 		p += chunk;
 		nbytes -= chunk;
@@ -1386,7 +1386,7 @@ urandom_read(struct file *file, char __user *buf, size_t nbytes, loff_t *ppos)
 	int ret;
 
 	if (unlikely(nonblocking_pool.initialized == 0))
-		printk_once(KERN_NOTICE "random: %s urandom read "
+		printk_once(KERN_INFO "random: %s urandom read "
 			    "with %d bits of entropy available\n",
 			    current->comm, nonblocking_pool.entropy_total);
 

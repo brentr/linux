@@ -45,9 +45,12 @@ external_dirs=
 NF_00_LB=_Make
 NF_00_CM=ltibMake uImage
 NF_00_WD=%p
-NF_01_LB=Make Custom _Target...
-NF_01_CM=ltibMake -j9 CONFIG_DEBUG_SECTION_MISMATCH=y uImage modules
+NF_01_LB=uImage
+NF_01_CM=ltibMake uImage
 NF_01_WD=%p
 NF_02_LB=Make _Object
 NF_02_CM=ltibMake %e.o
 NF_02_WD=%p
+NF_03_LB=modules
+NF_03_CM=ltibMake modules
+NF_03_WD=%p

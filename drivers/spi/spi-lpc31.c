@@ -1,5 +1,5 @@
 /*
- * drivers/spi/spi_lpc313x.c
+ * drivers/spi/spi-lpc31.c
  *
  * Copyright (C) 2009 NXP Semiconductors
  *

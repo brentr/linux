@@ -620,7 +620,7 @@ static struct platform_device	lpc313x_nand_device = {
 };
 #endif
 
-#if defined(CONFIG_SPI_LPC313X) || defined(CONFIG_SPI_LPC313X_MODULE)
+#if defined(CONFIG_SPI_LPC31) || defined(CONFIG_SPI_LPC31_MODULE)
 static struct resource lpc313x_spi_resources[] = {
 	[0] = {
 		.start	= SPI_PHYS,
@@ -735,7 +735,7 @@ static struct platform_device *devices[] __initdata = {
 #if defined(CONFIG_MTD_NAND_LPC31) || defined(CONFIG_MTD_NAND_LPC31_MODULE)
 	&lpc313x_nand_device,
 #endif
-#if defined(CONFIG_SPI_LPC313X) || defined(CONFIG_SPI_LPC313X_MODULE)
+#if defined(CONFIG_SPI_LPC31) || defined(CONFIG_SPI_LPC31_MODULE)
 	&lpc313x_spi_device,
 #endif
 };

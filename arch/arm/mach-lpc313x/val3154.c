@@ -90,7 +90,7 @@ static struct platform_device	lpc313x_mci_device = {
 };
 
 
-#if defined(CONFIG_SPI_LPC313X)
+#if defined(CONFIG_SPI_LPC31)
 static struct resource lpc313x_spi_resources[] = {
 	[0] = {
 		.start	= SPI_PHYS,
@@ -165,7 +165,7 @@ arch_initcall(lpc313x_spidev_register);
 
 static struct platform_device *devices[] __initdata = {
 	&lpc313x_mci_device,
-#if defined(CONFIG_SPI_LPC313X)
+#if defined(CONFIG_SPI_LPC31)
 	&lpc313x_spi_device,
 #endif
 };

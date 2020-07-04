@@ -588,7 +588,7 @@ config SPI_NUC900
 	help
 	  SPI driver for Nuvoton NUC900 series ARM SoCs
 
-config SPI_LPC313X
+config SPI_LPC31
 	tristate "LPC313X SPI controller"
 	depends on SPI_MASTER && ARCH_LPC313X
 	help

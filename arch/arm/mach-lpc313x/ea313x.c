@@ -521,7 +521,7 @@ static void __init ea_add_device_octalUart(u32 timing)
 }
 
 
-#if defined(CONFIG_MTD_NAND_LPC313X) || defined(CONFIG_MTD_NAND_LPC313X_MODULE)
+#if defined(CONFIG_MTD_NAND_LPC31) || defined(CONFIG_MTD_NAND_LPC31_MODULE)
 static struct resource lpc313x_nand_resources[] = {
 	[0] = {
 		.start  = IO_NAND_PHYS,
@@ -732,7 +732,7 @@ arch_initcall(lpc313x_spimtd_register);
 
 static struct platform_device *devices[] __initdata = {
 	&lpc313x_mci_device,
-#if defined(CONFIG_MTD_NAND_LPC313X) || defined(CONFIG_MTD_NAND_LPC313X_MODULE)
+#if defined(CONFIG_MTD_NAND_LPC31) || defined(CONFIG_MTD_NAND_LPC31_MODULE)
 	&lpc313x_nand_device,
 #endif
 #if defined(CONFIG_SPI_LPC313X) || defined(CONFIG_SPI_LPC313X_MODULE)

@@ -86,7 +86,7 @@ static struct resource lpc313x_mci_resources[] = {
 	},
 };
 
-#if defined (CONFIG_MTD_NAND_LPC313X)
+#if defined (CONFIG_MTD_NAND_LPC31)
 static struct resource lpc313x_nand_resources[] = {
 	[0] = {
 		.start  = IO_NAND_PHYS,
@@ -286,7 +286,7 @@ static struct platform_device	lpc313x_mci_device = {
 static struct platform_device *devices[] __initdata = {
 	&cs89x0_device,
 	&lpc313x_mci_device,
-#if defined (CONFIG_MTD_NAND_LPC313X)
+#if defined (CONFIG_MTD_NAND_LPC31)
 	&lpc313x_nand_device,
 #endif
 #if defined(CONFIG_SPI_LPC313X)

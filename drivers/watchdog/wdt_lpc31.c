@@ -327,7 +327,7 @@ static struct platform_driver lpc313x_wdt_driver = {
 	.remove = __exit_p(lpc313x_wdt_remove),
 	.driver = {
 		   .owner = THIS_MODULE,
-		   .name = "lpc313x-wdt",
+		   .name = "lpc31-wdt",
 		   },
 };
 

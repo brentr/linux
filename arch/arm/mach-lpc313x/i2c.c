@@ -138,7 +138,7 @@ static struct platform_device *i2c_busses[] __initdata = {
 	&i2c1_bus,
 };
 
-void __init lpc313x_register_i2c_devices(void)
+void __init lpc313x_register_i2c_busses(void)
 {
 	cgu_clk_en_dis( CGU_SB_I2C0_PCLK_ID, 1);
 	cgu_clk_en_dis( CGU_SB_I2C1_PCLK_ID, 1);

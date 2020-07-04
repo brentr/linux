@@ -99,7 +99,7 @@ static struct platform_device serial_device = {
 	},
 };
 
-#if defined(CONFIG_HW_RANDOM_LPC313X) || defined(CONFIG_HW_RANDOM_LPC313X_MODULE)
+#if defined(CONFIG_HW_RANDOM_LPC31) || defined(CONFIG_HW_RANDOM_LPC31_MODULE)
 
 static struct resource rng_resources[] = {
 	{
@@ -120,7 +120,7 @@ static struct platform_device rng_device = {
 
 static struct platform_device *devices[] __initdata = {
 	&serial_device,
-#if defined(CONFIG_HW_RANDOM_LPC313X) || defined(CONFIG_HW_RANDOM_LPC313X_MODULE)
+#if defined(CONFIG_HW_RANDOM_LPC31) || defined(CONFIG_HW_RANDOM_LPC31_MODULE)
 	&rng_device,
 #endif
 };
@@ -180,20 +180,6 @@ void __init lpc313x_map_io(void)
 {
 	iotable_init(lpc313x_io_desc, ARRAY_SIZE(lpc313x_io_desc));
 }
-
-#define GPIO_BOOT0 GPIO_GPIO0
-#define GPIO_BOOT1 GPIO_GPIO1
-#define GPIO_BOOT2 GPIO_GPIO2
-
-static void lpc313x_export_bootsel(void) {
-	/* pre-request and export boot mode selector pins */
-	gpio_export(GPIO_BOOT0, 1);
-	gpio_request(GPIO_BOOT1, "boot1");
-	gpio_direction_input(GPIO_BOOT1);
-	gpio_export(GPIO_BOOT1, 1);
-    //boot2's and 0's direction depends on baseboard type -- init it later..
-}
-
 
 #ifndef CONFIG_SERIAL_8250_CONSOLE
 static void __init lpc313x_uart_init(void)
@@ -259,8 +245,6 @@ int __init lpc313x_init(void)
 #endif
 
 	lpc313x_gpiolib_init();
-
-	lpc313x_export_bootsel();
 
 #ifdef CONFIG_DEBUG_FS
 	lpc313x_cgu_init_debugfs();

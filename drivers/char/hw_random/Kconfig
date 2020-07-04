@@ -363,14 +363,14 @@ config UML_RANDOM
 	  http://sourceforge.net/projects/gkernel/).  rngd periodically reads
 	  /dev/hwrng and injects the entropy into /dev/random.
 
-config HW_RANDOM_LPC313X
-	tristate "NXP LPC313x Random Number Generator"
+config HW_RANDOM_LPC31
+	tristate "NXP LPC31xx Random Number Generator"
 	depends on HW_RANDOM && ARCH_LPC313X
 	---help---
 	  This driver provides kernel-side support for the Random Number
-	  Generator hardware found on NXP LPC313x processors.
+	  Generator hardware found on NXP LPC31xx processors.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called lpc313x-rng.
+	  module will be called lpc31-rng.
 
 	  If unsure, say Y.

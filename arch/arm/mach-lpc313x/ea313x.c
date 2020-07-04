@@ -66,6 +66,9 @@ enum {
 #define XR_IRQ  PC104_IRQ6
 #define XR_EVT  PC104_EVT6
 
+#define GPIO_BOOT0 GPIO_GPIO0
+#define GPIO_BOOT1 GPIO_GPIO1
+#define GPIO_BOOT2 GPIO_GPIO2
 
 //PC104 EVT/IRQ mapping -- all are active high
 #define PC104_EVT3   EVT_GPIO11
@@ -89,7 +92,7 @@ enum {
 #define PC104_IRQ15  GPIO_GPIO18
 
 //This came from leds-pca9532
-int lpc313x_USBpower = -1;
+static int lpc31_USBpower = -1;
 
 static struct gpio_led lpc_led_pins[] __initdata = {
 	{
@@ -99,7 +102,7 @@ static struct gpio_led lpc_led_pins[] __initdata = {
 		.gpio		= GPIO_GPIO2  //changed according to discovered baseboard
 	},
 };
-#define lpc313x_LED (lpc_led_pins[0].gpio)
+#define lpc31_LED (lpc_led_pins[0].gpio)
 
 static const struct gpio_led_platform_data lpc_leds __initconst = {
 	.num_leds		= ARRAY_SIZE(lpc_led_pins),
@@ -121,46 +124,15 @@ __setup("board=", setBoardID);
 
 
 static inline int mbariBoard(int id)
-// return 1 for mbariBoard, 0 for non-mbari (Embedded Artists?) origin board
+// return 1 for mbariBoard, 0 for non-mbari (Embedded Artists?) board
 {
   uint8_t low = id;
   return low == 0 || low == 0104;
 }
 
-static int16_t pc104sharedIRQ(void)
-/*
-  return negative value if shared serial IRQ is asserted
-  lower 15 bits indicate interrupt number
-*/
-{
-  return GPIO_STATE(IOCONF_EBI_I2STX_0) &
-          		1<<(PC104_IRQ6 - BASE_GPIO_EBI_I2STX_0) ?
-           IRQ_XR16788_INT | 0x8000 : IRQ_XR16788_INT;
-}
-
-static int16_t XRsharedIRQ(void)
-/*
-  return negative value if shared serial IRQ is asserted
-  lower 15 bits indicate interrupt number
-*/
-{
-  return GPIO_STATE(IOCONF_EBI_I2STX_0) &
-          		1<<(XR_IRQ - BASE_GPIO_EBI_I2STX_0) ?
-           IRQ_XR16788_INT : IRQ_XR16788_INT | 0x8000;
-}
-
-static int16_t noSharedIRQ(void)
-{
-	return -1;
-}
-
-int16_t (*shared8250IRQ)(void) = noSharedIRQ;
-
-
-
 
 static struct lpc313x_mci_irq_data irq_data = {
-	.irq = IRQ_SDMMC_CD,
+	.irq = IRQ_SDMMC_CD
 };
 
 static int mci_get_cd(u32 slot_id)
@@ -215,20 +187,20 @@ static void exportBootI(int gpio, const char *name)
 static int mci_init(u32 slot_id, irq_handler_t irqhdlr, void *data)
 {
 	/* disable power to the slot */
-        exportGPO(GPIO_MI2STX_DATA0, "MMCpower", 1);
-        gpio_sysfs_set_active_low(GPIO_MI2STX_DATA0, 1);
+	exportGPO(GPIO_MI2STX_DATA0, "MMCpower", 1);
+	gpio_sysfs_set_active_low(GPIO_MI2STX_DATA0, 1);
 
 	/* set cd pins as GPIO pins */
-        exportGPI(GPIO_MI2STX_BCK0, "MMCabsent");
+	exportGPI(GPIO_MI2STX_BCK0, "MMCabsent");
 
 	/* set card detect irq info */
 	irq_data.data = data;
 	irq_data.irq_hdlr = irqhdlr;
 	request_irq(irq_data.irq,
-			ea313x_mci_detect_interrupt,
-			IRQ_TYPE_LEVEL_LOW,
-			"mmc-cd",
-			&irq_data);
+	ea313x_mci_detect_interrupt,
+	IRQ_TYPE_LEVEL_LOW,
+	"mmc-cd",
+	&irq_data);
 	/****temporary for PM testing */
 	enable_irq_wake(irq_data.irq);
 
@@ -254,7 +226,7 @@ static void mci_setpower(u32 ignored_slot, u32 volt)
 
 static int mci_get_bus_wd(u32 slot_id)
 {
-	return 4;
+	return sizeof(u32);
 }
 
 static void mci_exit(u32 slot_id)
@@ -801,9 +773,28 @@ static struct map_desc ea313x_io_desc[] __initdata = {
 	},
 };
 
+#include <linux/leds-pca9532.h>
+#define extraGPIO(label)  {.name = label, .type = PCA9532_TYPE_GPIO}
+#define extraLED(label) \
+  {.name = label ":red", .type = PCA9532_TYPE_LED, .state = PCA9532_OFF}
+
+//LEDs and control signals driven from the PCA9532
+static struct pca9532_platform_data pca9532LEDs __initdata = {
+	{ //joystick inputs
+		extraGPIO("joy0"), extraGPIO("joy1"), extraGPIO("joy2"),
+		extraGPIO("joy3"), extraGPIO("joy4"),
+		extraGPIO("OTP"), extraGPIO("USB+5V"), extraGPIO("PWR_CTRL"),
+		extraLED("LED5"),extraLED("LED6"), extraLED("LED7"), extraLED("LED8"),
+		extraLED("LED9"),extraLED("LED10"),extraLED("LED11"),extraLED("LED12")
+	},
+	.psc = {152/60 - 1, 0},  //dim at approximately 60hz
+	.gpio_base = BASE_GPIO_PCA9532
+};
+
 static struct i2c_board_info ea313x_i2c_devices[] __initdata = {
 	{
 		I2C_BOARD_INFO("pca9532", 0x60),
+		.platform_data = &pca9532LEDs
 	},
 };
 
@@ -865,46 +856,37 @@ static struct spi_board_info rtc __initdata = {
 
 static void __init boardInit(const char *signon, u32 timing)
 {
-  /*  Note that reset generator chip may extend reset by 100ms
-      Therefore, it it important to hold off initializing the KS8851 ethernet
-      Loading the KS8851 driver from a kernel module ensures this
-  */
-  printk(signon);
-  ea_add_device_ks8851(timing);
-  SYS_MUX_UART_SPI = 1;  //SPI CS1 & CS2 lines replace USART CTS & RTS
-  requestGPO(GPIO_MUART_RTS_N, "SPIdevCS", 1);
-#if defined(CONFIG_RTC_DRV_DS3234) || defined(CONFIG_RTC_DRV_DS3234_MODULE)
-  requestGPO(GPIO_MUART_CTS_N, "ds3234CS", 1);
-  spi_register_board_info(&rtc, 1);
-#endif
+/*  Note that reset generator chip may extend reset by 100ms
+  Therefore, it it important to hold off initializing the KS8851 ethernet
+  Loading the KS8851 driver from a kernel module ensures this
+*/
+	printk(signon);
+	ea_add_device_ks8851(timing);
+	SYS_MUX_UART_SPI = 1;  //SPI CS1 & CS2 lines replace USART CTS & RTS
+	requestGPO(GPIO_MUART_RTS_N, "SPIdevCS", 1);
+	#if defined(CONFIG_RTC_DRV_DS3234) || defined(CONFIG_RTC_DRV_DS3234_MODULE)
+	requestGPO(GPIO_MUART_CTS_N, "ds3234CS", 1);
+	spi_register_board_info(&rtc, 1);
+	#endif
 
-  //I2STX_WS0 should be wired to USB_ID
-  //early PC104 carrier boards mistakenly connect NAND_RYBN2 to USB_ID
-  requestGPO(GPIO_MI2STX_WS0, "USBgadget",
+	//I2STX_WS0 should be wired to USB_ID
+	//early PC104 carrier boards mistakenly connect NAND_RYBN2 to USB_ID
+	requestGPO(GPIO_MI2STX_WS0, "USBgadget",
 #if defined(CONFIG_USB_GADGET)
-    1
+	1
 #else
-    0
+	0
 #endif
-      );
+	  );
 
-  gpio_sysfs_set_active_low(GPIO_NAND_NCS_2, 1);
-  exportGPI(GPIO_NAND_NCS_2, "USBoverload");
+	gpio_sysfs_set_active_low(GPIO_NAND_NCS_2, 1);
+	exportGPI(GPIO_NAND_NCS_2, "USBoverload");
 
-  //boot2 is normally pulled high.
-  //this keeps USB PWR off during reset (when GPIO19 is not available)
-  lpc313x_USBpower = GPIO_GPIO2;
-  if (!(boardID & 0x1000)) {  //normal case with USB PWR control on GPIO19
-    exportBootI(GPIO_GPIO2, "boot2");
-    lpc313x_USBpower = GPIO_GPIO19;
-  }
-  exportGPO(lpc313x_USBpower, "USB+5V", 1);
+	lpc31_USBpower = GPIO_GPIO19;
+	lpc31_LED = GPIO_GPIO20;
 
-  lpc313x_LED = GPIO_GPIO0; //(in case GPIO20 is not available)
-  if (!(boardID & 0x2000)) {  //normal case with dedicated output on GPIO20
-    exportBootI(GPIO_GPIO0, "boot0");
-    lpc313x_LED = GPIO_GPIO20;
-  }
+	exportBootI(GPIO_BOOT2, "boot2");  //not being used as CPULED
+	exportGPO(lpc31_USBpower, "USB+5V", 1);
 }
 
 
@@ -914,18 +896,20 @@ static void __init ea313x_init(void)
   unsigned long resetDone;
 
   lpc313x_init();
+  exportBootI(GPIO_GPIO0, "boot0");
+  exportBootI(GPIO_BOOT1, "boot1");
+  //GPIO_BOOT2 direction is board dependent
 
   requestGPO(GPIO_SPI_CS_OUT0, "SPIflashCS", 1);
 
   platform_add_devices(devices, ARRAY_SIZE(devices));
-
-  /* register i2c busses */
-  lpc313x_register_i2c_devices();
+  lpc313x_register_i2c_busses();
 
 #if defined(CONFIG_MACH_EA3152)
   i2c_register_board_info(1, ea3152_i2c1_devices,
 	   ARRAY_SIZE(ea3152_i2c1_devices));
 #endif
+
        /* add other devices depending on carrier board type */
   switch (boardID & 0xff) {
     case 0:  /* ESP 3G baseboard */
@@ -933,7 +917,6 @@ static void __init ea313x_init(void)
       gpio_export(PeripheralReset, 1);   /* echo low > gpio58/direction */
       resetDone = jiffies + HZ/100 + 1;  /* deassert at least 10ms from now */
       boardInit("MBARI ESP 3G\n", 0000050004); //fast directly connected strobes
-	  shared8250IRQ = XRsharedIRQ;
       ea_add_device_octalUart(0000060005);
       /* Configure UART Interrupt pin as input, no pull-up */
       requestGPI(GPIO_MNAND_RYBN3, "XR16788IRQ");
@@ -959,20 +942,18 @@ static void __init ea313x_init(void)
       if (nr_uarts > 9)  //if there are sufficient I/O ports allocated...
         platform_device_register(&isa_device);  //add legacy ISA ports
       /* Configure UART Interrupt pin as input, no pull-up */
-	  shared8250IRQ = pc104sharedIRQ;
       requestGPI(XR_IRQ, "XR16788IRQ");
       while (jiffies < resetDone) ;      /* wait 10ms */
       PC104FPGA = PC104IRQID;            /* deassert enet and PC/104 resets */
       break;
 
     default:
-	  i2c_register_board_info(0, ea313x_i2c_devices,
-			  ARRAY_SIZE(ea313x_i2c_devices));
       printk("Embedded Artists LPC31xx (boardID=0x%02x)\n", boardID);
 	      /* set the I2SRX_WS0 pin as GPIO_IN for vbus overcurrent flag */
+	  i2c_register_board_info(0, ea313x_i2c_devices,
+			  ARRAY_SIZE(ea313x_i2c_devices));
       gpio_sysfs_set_active_low(GPIO_I2SRX_WS0, 1);
       exportGPI(GPIO_I2SRX_WS0, "USBoverload");
-      exportBootI(GPIO_GPIO0, "boot0");
       ea_add_device_dm9000();
       nr_uarts = 1;  //avoids having unintialized ports under /dev/ttyS*
   }
@@ -1000,14 +981,14 @@ void __init awaitPeripheralReset(void)
 
 
 void lpc313x_vbus_power(int enable)
-{  //FIXME:  This does not handle the Embedded Artists dev board
-	if (lpc313x_USBpower >= 0) {
+{
+	if (lpc31_USBpower >= 0) {
 		if (enable) {
 			printk (KERN_INFO "USB power ON\n");
-			gpio_set_value(lpc313x_USBpower, 1);
+			gpio_set_value(lpc31_USBpower, 1);
 		} else {
 			printk (KERN_INFO "USB power OFF\n");
-			gpio_set_value(lpc313x_USBpower, 0);
+			gpio_set_value(lpc31_USBpower, 0);
 		}
 	}
 }

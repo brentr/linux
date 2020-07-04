@@ -36,6 +36,16 @@ struct pca9532_chip_info {
 	u8	num_leds;
 };
 
+struct pca9532_led {
+	u8 id;
+	struct i2c_client *client;
+	char *name;
+	struct led_classdev ldev;
+	struct work_struct work;
+	enum pca9532_type type;
+	enum pca9532_state state;
+};
+
 struct pca9532_data {
 	struct i2c_client *client;
 	struct pca9532_led leds[16];
@@ -52,7 +62,6 @@ struct pca9532_data {
 
 static int pca9532_probe(struct i2c_client *client,
 	const struct i2c_device_id *id);
-static int pca9532_remove(struct i2c_client *client);
 
 enum {
 	pca9530,
@@ -86,12 +95,12 @@ static const struct pca9532_chip_info pca9532_chip_info_tbl[] = {
 	},
 };
 
-static struct i2c_driver pca9532_driver = {
+static struct i2c_driver __refdata pca9532_driver = {
 	.driver = {
 		.name = "leds-pca953x",
 	},
 	.probe = pca9532_probe,
-	.remove = pca9532_remove,
+	.remove = __exit_p(pca9532_remove),
 	.id_table = pca9532_id,
 };
 
@@ -293,7 +302,7 @@ static int pca9532_gpio_direction_output(struct gpio_chip *gc, unsigned offset, 
 }
 #endif /* CONFIG_LEDS_PCA9532_GPIO */
 
-static int pca9532_destroy_devices(struct pca9532_data *data, int n_devs)
+static int __init pca9532_destroy_devices(struct pca9532_data *data, int n_devs)
 {
 	int i = n_devs;
 
@@ -326,7 +335,21 @@ static int pca9532_destroy_devices(struct pca9532_data *data, int n_devs)
 	return 0;
 }
 
-static int pca9532_configure(struct i2c_client *client,
+#ifdef MODULE
+static int __exit pca9532_remove(struct i2c_client *client)
+{
+	struct pca9532_data *data = i2c_get_clientdata(client);
+	int err;
+
+	err = pca9532_destroy_devices(data, data->chip_info->num_leds);
+	if (err)
+		return err;
+
+	return 0;
+}
+#endif
+
+static int __init pca9532_configure(struct i2c_client *client,
 	struct pca9532_data *data, struct pca9532_platform_data *pdata)
 {
 	int i, err = 0;
@@ -344,7 +367,7 @@ static int pca9532_configure(struct i2c_client *client,
 
 	for (i = 0; i < data->chip_info->num_leds; i++) {
 		struct pca9532_led *led = &data->leds[i];
-		struct pca9532_led *pled = &pdata->leds[i];
+		struct pca9532_ledcfg *pled = &pdata->leds[i];
 		led->client = client;
 		led->id = i;
 		led->type = pled->type;
@@ -436,7 +459,7 @@ exit:
 	return err;
 }
 
-static int pca9532_probe(struct i2c_client *client,
+static int __init pca9532_probe(struct i2c_client *client,
 	const struct i2c_device_id *id)
 {
 	struct pca9532_data *data = i2c_get_clientdata(client);
@@ -462,18 +485,6 @@ static int pca9532_probe(struct i2c_client *client,
 	mutex_init(&data->update_lock);
 
 	return pca9532_configure(client, data, pca9532_pdata);
-}
-
-static int pca9532_remove(struct i2c_client *client)
-{
-	struct pca9532_data *data = i2c_get_clientdata(client);
-	int err;
-
-	err = pca9532_destroy_devices(data, data->chip_info->num_leds);
-	if (err)
-		return err;
-
-	return 0;
 }
 
 module_i2c_driver(pca9532_driver);

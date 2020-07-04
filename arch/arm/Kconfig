@@ -619,7 +619,7 @@ config ARCH_LPC313X
 	select CPU_ARM926T
         select IRQ_DOMAIN
        help
-         Say Y here for systems based on one of the NXP LPC313x & LPC315x
+         Say Y here for systems based on one of the NXP LPC31xx
          System on a Chip processors.  These CPUs include an ARM926EJS
          core with a wide array of integrated devices for
          hand-held and low-power applications.

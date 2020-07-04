@@ -1,5 +1,5 @@
 /*
- * lpc313x-rng.c - RNG driver for NXP LPC313x
+ * lpc31-rng.c - RNG driver for NXP LPC31xx
  *
  * Author: Ingo Albrecht <prom@berlin.ccc.de>
  *
@@ -147,7 +147,7 @@ static int lpc313x_rng_resume(struct platform_device *pdev)
 
 static struct platform_driver lpc313x_rng_driver = {
 	.driver = {
-		   .name = "lpc313x-rng",
+		   .name = "lpc31-rng",
 		   .owner = THIS_MODULE,
 		   },
 	.probe   = lpc313x_rng_probe,

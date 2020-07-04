@@ -211,8 +211,8 @@ config USB_EHCI_HCD_AT91
           Enables support for the on-chip EHCI controller on
           Atmel chips.
 
-config USB_EHCI_HCD_LPC313X
-        tristate  "Support for NXP LPC313X on-chip EHCI USB controller"
+config USB_EHCI_HCD_LPC31
+        tristate  "Support for NXP LPC31xx on-chip EHCI USB controller"
         depends on USB_EHCI_HCD && ARCH_LPC313X
         default y
         ---help---
@@ -699,7 +699,7 @@ config USB_SL811_HCD
 	help
 	  The SL811HS is a single-port USB controller that supports either
 	  host side or peripheral side roles.  Enable this option if your
-	  board has this chip, and you want to use it as a host controller. 
+	  board has this chip, and you want to use it as a host controller.
 	  If unsure, say N.
 
 	  To compile this driver as a module, choose M here: the

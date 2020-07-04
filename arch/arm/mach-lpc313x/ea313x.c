@@ -903,7 +903,6 @@ static void __init ea313x_init(void)
   requestGPO(GPIO_SPI_CS_OUT0, "SPIflashCS", 1);
 
   platform_add_devices(devices, ARRAY_SIZE(devices));
-  lpc313x_register_i2c_busses();
 
 #if defined(CONFIG_MACH_EA3152)
   i2c_register_board_info(1, ea3152_i2c1_devices,
@@ -937,7 +936,7 @@ static void __init ea313x_init(void)
     case 0104:  /* octal 0104 denotes PC/104 carrier */
       PC104FPGA = PC104IRQID | PC104ENETRESET | PC104RESET;
       resetDone = jiffies + HZ/100 + 1;  /* deassert at least 10ms from now */
-      boardInit(" PC/104 Carrier\n", 0200060004);  //slower when routed via FPGA
+      boardInit("PC/104 Carrier\n", 0200060004);  //slower when routed via FPGA
       ea_add_device_octalUart(0202130212);  //much slower for FPGA on PC/104 bus
       if (nr_uarts > 9)  //if there are sufficient I/O ports allocated...
         platform_device_register(&isa_device);  //add legacy ISA ports
@@ -958,6 +957,7 @@ static void __init ea313x_init(void)
       nr_uarts = 1;  //avoids having unintialized ports under /dev/ttyS*
   }
   gpio_led_register_device(-1, &lpc_leds);
+  lpc313x_register_i2c_busses();
 }
 
 

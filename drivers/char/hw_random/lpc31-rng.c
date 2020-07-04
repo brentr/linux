@@ -43,6 +43,7 @@ static int lpc313x_rng_data_read(struct hwrng *rng, u32 * data)
 static struct hwrng lpc313x_rng = {
 	.name	= "lpc31",
 	.data_read = lpc313x_rng_data_read,
+	.quality = 1000  //trust this entropy source to fill pool at boot-time
 };
 
 static void lpc313x_rng_endis_ring_clocks(int enable)

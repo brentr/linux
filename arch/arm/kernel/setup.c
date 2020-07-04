@@ -508,8 +508,9 @@ void __init smp_setup_processor_id(void)
 	 * access percpu variable inside lock_release
 	 */
 	set_my_cpu_offset(0);
-
+#ifdef CONFIG_SMP
 	pr_info("Booting Linux on physical CPU 0x%x\n", mpidr);
+#endif
 }
 
 struct mpidr_hash mpidr_hash;

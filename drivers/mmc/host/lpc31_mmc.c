@@ -1,7 +1,7 @@
 /*
  * LPC313x MultiMedia Card Interface driver
  *
- * drivers/mmc/host/lpc313x_mmc.c
+ * drivers/mmc/host/lpc31_mmc.c
  *
  * Copyright (C) 2009 NXP Semiconductors
  *
@@ -37,7 +37,7 @@
 #include <linux/delay.h>
 #include <linux/irq.h>
 
-#include "lpc313x_mmc.h"
+#include "lpc31_mmc.h"
 #include <mach/irqs.h>
 #include <linux/mmc/host.h>
 #include <mach/board.h>

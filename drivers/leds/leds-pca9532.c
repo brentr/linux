@@ -95,15 +95,6 @@ static const struct pca9532_chip_info pca9532_chip_info_tbl[] = {
 	},
 };
 
-static struct i2c_driver __refdata pca9532_driver = {
-	.driver = {
-		.name = "leds-pca953x",
-	},
-	.probe = pca9532_probe,
-	.remove = __exit_p(pca9532_remove),
-	.id_table = pca9532_id,
-};
-
 /* We have two pwm/blinkers, but 16 possible leds to drive. Additionally,
  * the clever Thecus people are using one pwm to drive the beeper. So,
  * as a compromise we average one pwm to the values requested by all
@@ -486,6 +477,15 @@ static int __init pca9532_probe(struct i2c_client *client,
 
 	return pca9532_configure(client, data, pca9532_pdata);
 }
+
+static struct i2c_driver __refdata pca9532_driver = {
+	.driver = {
+		.name = "leds-pca953x",
+	},
+	.probe = pca9532_probe,
+	.remove = __exit_p(pca9532_remove),
+	.id_table = pca9532_id,
+};
 
 module_i2c_driver(pca9532_driver);
 

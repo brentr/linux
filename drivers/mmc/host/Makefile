@@ -76,4 +76,4 @@ ifeq ($(CONFIG_CB710_DEBUG),y)
 	CFLAGS-cb710-mmc	+= -DDEBUG
 endif
 
-obj-$(CONFIG_MMC_LPC313x)	+= lpc313x_mmc.o
+obj-$(CONFIG_MMC_LPC31)	+= lpc31_mmc.o

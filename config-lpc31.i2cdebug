@@ -260,7 +260,7 @@ CONFIG_ARCH_LPC313X=y
 # CONFIG_ARCH_OMAP1 is not set
 
 #
-# LPC313x Implementations
+# LPC31xx Implementations
 #
 CONFIG_MACH_EA313X=y
 # CONFIG_MACH_EA3152 is not set

@@ -214,7 +214,7 @@ CONFIG_MMU=y
 CONFIG_ARCH_LPC313X=y
 
 #
-# LPC313x Implementations
+# LPC31xx Implementations
 #
 # CONFIG_MACH_EA313X is not set
 # CONFIG_MACH_EA3152 is not set

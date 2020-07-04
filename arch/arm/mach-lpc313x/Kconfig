@@ -1,4 +1,4 @@
-menu "LPC313x Implementations"
+menu "LPC31xx Implementations"
 	depends on ARCH_LPC313X
 
 choice

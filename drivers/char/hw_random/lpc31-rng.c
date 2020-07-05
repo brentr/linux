@@ -37,12 +37,30 @@ static inline void lpc313x_rng_write_reg(int reg, u32 val)
 static int lpc313x_rng_data_read(struct hwrng *rng, u32 * data)
 {
 	*data = lpc313x_rng_read_reg(RNG_REG_RANDOM);
-	return 4;
+	return sizeof(*data);
+}
+
+static int lpc313x_rng_read(struct hwrng *rng, void *data, size_t max,bool wait)
+{
+	u32 *word = data;
+	size_t words = max / sizeof(*word);
+	size_t bytes = bytes = max % sizeof(*word);
+
+	while(words--)
+		*word++ = lpc313x_rng_read_reg(RNG_REG_RANDOM);
+	if (bytes) {
+		u8 *last = (u8 *)words;
+		do
+			*last++ = lpc313x_rng_read_reg(RNG_REG_RANDOM);
+		while(--bytes);
+	}
+	return max;
 }
 
 static struct hwrng lpc313x_rng = {
 	.name	= "lpc31",
 	.data_read = lpc313x_rng_data_read,
+	.read = lpc313x_rng_read,
 	.quality = 1000  //trust this entropy source to fill pool at boot-time
 };
 

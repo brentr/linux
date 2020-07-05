@@ -93,7 +93,7 @@ enum {
 //This came from leds-pca9532
 static int lpc31_USBpower = -1;
 
-static struct gpio_led lpc_led_pins[] = {
+static struct gpio_led lpc_led_pins[] __initdata = {
 	{
 		.name	= "cpu:blue:busy",
 		.default_trigger = "cpu0",

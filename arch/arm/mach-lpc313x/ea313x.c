@@ -46,6 +46,8 @@
 #include <mach/i2c.h>
 #include <mach/board.h>
 
+#define __initdata
+
 /*  PC/104 carrier board constants */
 #define PC104base8  EXT_SRAM0_PHYS           //base address for 8-bit I/O
 #define PC104base16 (PC104base8+_BIT(15))    //base address for 16-bit I/O
@@ -234,7 +236,7 @@ static void mci_exit(u32 slot_id)
 	free_irq(irq_data.irq, &irq_data);
 }
 
-static struct resource lpc313x_mci_resources[] = {
+static struct resource lpc313x_mci_resources[] __initdata = {
 	[0] = {
 		.start  = IO_SDMMC_PHYS,
 		.end	= IO_SDMMC_PHYS + IO_SDMMC_SIZE,
@@ -257,7 +259,7 @@ static struct lpc313x_mci_board ea313x_mci_platform_data = {
 };
 
 static u64 mci_dmamask = 0xffffffffUL;
-static struct platform_device	lpc313x_mci_device = {
+static struct platform_device	lpc313x_mci_device __initdata = {
 	.name		= "lpc31_mmc",
 	.num_resources	= ARRAY_SIZE(lpc313x_mci_resources),
 	.dev		= {
@@ -273,7 +275,7 @@ static struct platform_device	lpc313x_mci_device = {
  */
 #if defined(CONFIG_DM9000) || defined(CONFIG_DM9000_MODULE)
 #include <linux/dm9000.h>
-static struct resource dm9000_resource[] = {
+static struct resource dm9000_resource[] __initdata = {
 	[0] = {
 		.start	= EXT_SRAM1_PHYS,
 		.end	= EXT_SRAM1_PHYS + 0xFF,
@@ -332,7 +334,7 @@ static struct dm9000_plat_data dm9000_platdata = {
 	.inblk = dm9000_inblk,
 };
 
-static struct platform_device dm9000_device = {
+static struct platform_device dm9000_device __initdata = {
 	.name		= "dm9000",
 	.id		= 0,
 	.num_resources	= ARRAY_SIZE(dm9000_resource),
@@ -379,7 +381,7 @@ static void __init ea_add_device_dm9000(void) {}
 
 #define KS8851_base  EXT_SRAM1_PHYS
 
-static struct resource ks8851_resource[] = {
+static struct resource ks8851_resource[] __initdata = {
 	[0] = {
 		.start	= KS8851_base,
 		.end	= KS8851_base + 5,
@@ -401,7 +403,7 @@ static struct ks8851_mll_platform_data ks8851_data = {
 	.mac_addr = {0, 0, 0, 0, 0, 0} //default MAC address
 };
 
-static struct platform_device ks8851_device = {
+static struct platform_device ks8851_device __initdata = {
 	.name		= "ks8851_mll",
 	.id		= 0,
 	.num_resources	= ARRAY_SIZE(ks8851_resource),
@@ -477,7 +479,7 @@ static struct plat_serial8250_port exar_data[] = {
 	{ },
 };
 
-static struct platform_device xr16788_device = {
+static struct platform_device xr16788_device __initdata = {
 	.name			= "serial8250",
 	.id			= PLAT8250_DEV_PLATFORM1,
 	.dev			= {
@@ -493,7 +495,7 @@ static struct plat_serial8250_port isa_data[] = {
 	{ },
 };
 
-static struct platform_device isa_device = {
+static struct platform_device isa_device __initdata = {
 	.name			= "serial8250",
 	.id			= PLAT8250_DEV_PLATFORM2,
 	.dev			= {
@@ -522,7 +524,7 @@ static void __init ea_add_device_octalUart(u32 timing)
 
 
 #if defined(CONFIG_MTD_NAND_LPC31) || defined(CONFIG_MTD_NAND_LPC31_MODULE)
-static struct resource lpc313x_nand_resources[] = {
+static struct resource lpc313x_nand_resources[] __initdata = {
 	[0] = {
 		.start  = IO_NAND_PHYS,
 		.end	= IO_NAND_PHYS + IO_NAND_SIZE,
@@ -608,7 +610,7 @@ static struct lpc313x_nand_cfg ea313x_plat_nand = {
 };
 
 static u64 nand_dmamask = 0xffffffffUL;
-static struct platform_device	lpc313x_nand_device = {
+static struct platform_device lpc313x_nand_device __initdata = {
 	.name		= "lpc31_nand",
 	.dev		= {
 		.dma_mask		= &nand_dmamask,
@@ -621,7 +623,7 @@ static struct platform_device	lpc313x_nand_device = {
 #endif
 
 #if defined(CONFIG_SPI_LPC31) || defined(CONFIG_SPI_LPC31_MODULE)
-static struct resource lpc313x_spi_resources[] = {
+static struct resource lpc313x_spi_resources[] __initdata = {
 	[0] = {
 		.start	= SPI_PHYS,
 		.end	= SPI_PHYS + SZ_4K - 1,
@@ -659,7 +661,7 @@ static struct flash_platform_data spi_flash_data = {
 };
 
 static u64 lpc313x_spi_dma_mask = 0xffffffffUL;
-static struct platform_device lpc313x_spi_device = {
+static struct platform_device lpc313x_spi_device __initdata = {
 	.name		= "spi_lpc31",
 	.id		= 0,
 	.dev		= {

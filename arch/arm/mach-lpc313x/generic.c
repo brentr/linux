@@ -33,7 +33,7 @@
 
 #include <mach/gpio.h>
 #include <asm/mach/map.h>
-
+#define __initdata
 /* local functions */
 
 static void lpc313x_uart_pm(struct uart_port * port, unsigned int state,

@@ -34,103 +34,55 @@
 
 #define LPC313x_I2C0_SLV_ADDR            __REG (I2C0_PHYS + 0x014)
 #define LPC313x_I2C1_SLV_ADDR            __REG (I2C1_PHYS + 0x014)
-
-static int set_clock_run(struct platform_device *pdev)
-{
-	if (pdev->id == 0)
-		cgu_clk_en_dis( CGU_SB_I2C0_PCLK_ID, 1);
-	else
-		cgu_clk_en_dis( CGU_SB_I2C1_PCLK_ID, 1);
-
-	udelay(2);
-	return 0;
-}
-
-static int set_clock_stop(struct platform_device *pdev)
-{
-	if (pdev->id == 0)
-		cgu_clk_en_dis( CGU_SB_I2C0_PCLK_ID, 0);
-	else
-		cgu_clk_en_dis( CGU_SB_I2C1_PCLK_ID, 0);
-
-	return 0;
-}
-
-static int i2c_lpc_suspend(struct platform_device *pdev, pm_message_t state)
-{
-	int retval = 0;
-#ifdef CONFIG_PM
-	retval = set_clock_stop(pdev);
-#endif
-	return retval;
-}
-
-static int i2c_lpc_resume(struct platform_device *pdev)
-{
-	int retval = 0;
-#ifdef CONFIG_PM
-	retval = set_clock_run(pdev);
-#endif
-	return retval;
-}
-
-static u32 calculate_input_freq(struct platform_device *pdev)
-{
-	return (FFAST_CLOCK/1000000);
-}
-
-
+#define __initdata
 static struct i2c_pnx_algo_data lpc_algo_data0 = {
-	.base = I2C0_PHYS,
-	.irq = IRQ_I2C0,
+	.clk = CGU_SB_I2C0_PCLK_ID
+};
+static struct resource lpcI2C0_resources[] __initdata = {
+	{
+		.start  = I2C0_PHYS,
+		.end	= I2C0_PHYS + I2C_PNX_REGION_SIZE,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= IRQ_I2C0,
+		.end	= IRQ_I2C0,
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
+	}
+};
+static struct platform_device i2c0_bus __initdata = {
+	.name = "pnx-i2c",
+	.id = 0,
+	.resource = lpcI2C0_resources,
+	.num_resources= ARRAY_SIZE(lpcI2C0_resources),
+	.dev = {
+		.platform_data = &lpc_algo_data0
+	}
 };
 
 static struct i2c_pnx_algo_data lpc_algo_data1 = {
-	.base = I2C1_PHYS,
-	.irq = IRQ_I2C1,
+	.clk = CGU_SB_I2C1_PCLK_ID
 };
-
-static struct i2c_adapter lpc_adapter0 = {
-	.name = I2C_CHIP_NAME "0",
-	.algo_data = &lpc_algo_data0,
-};
-static struct i2c_adapter lpc_adapter1 = {
-	.name = I2C_CHIP_NAME "1",
-	.algo_data = &lpc_algo_data1,
-};
-
-static struct i2c_pnx_data i2c0_data = {
-	.suspend = i2c_lpc_suspend,
-	.resume = i2c_lpc_resume,
-	.calculate_input_freq = calculate_input_freq,
-	.set_clock_run = set_clock_run,
-	.set_clock_stop = set_clock_stop,
-	.adapter = &lpc_adapter0,
-};
-
-static struct i2c_pnx_data i2c1_data = {
-	.suspend = i2c_lpc_suspend,
-	.resume = i2c_lpc_resume,
-	.calculate_input_freq = calculate_input_freq,
-	.set_clock_run = set_clock_run,
-	.set_clock_stop = set_clock_stop,
-	.adapter = &lpc_adapter1,
-};
-
-static struct platform_device i2c0_bus = {
-	.name = "pnx-i2c",
-	.id = 0,
-	.dev = {
-		.platform_data = &i2c0_data,
+static struct resource lpcI2C1_resources[] __initdata = {
+	{
+		.start  = I2C1_PHYS,
+		.end	= I2C1_PHYS + I2C_PNX_REGION_SIZE,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= IRQ_I2C1,
+		.end	= IRQ_I2C1,
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
 	},
 };
-
-static struct platform_device i2c1_bus = {
+static struct platform_device i2c1_bus __initdata = {
 	.name = "pnx-i2c",
 	.id = 1,
+	.resource = lpcI2C1_resources,
+	.num_resources= ARRAY_SIZE(lpcI2C1_resources),
 	.dev = {
-		.platform_data = &i2c1_data,
-	},
+		.platform_data = &lpc_algo_data1
+	}
 };
 
 static struct platform_device *i2c_busses[] __initdata = {
@@ -140,8 +92,8 @@ static struct platform_device *i2c_busses[] __initdata = {
 
 void __init lpc313x_register_i2c_busses(void)
 {
-	cgu_clk_en_dis( CGU_SB_I2C0_PCLK_ID, 1);
-	cgu_clk_en_dis( CGU_SB_I2C1_PCLK_ID, 1);
+	cgu_clk_disable(CGU_SB_I2C0_PCLK_ID);
+	cgu_clk_disable(CGU_SB_I2C1_PCLK_ID);
 
 	/* Enable I2C1 signals */
 	GPIO_DRV_IP(IOCONF_I2C1, 0x3);

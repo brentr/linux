@@ -600,18 +600,24 @@ u32 cgu_fdiv_config(u32 fdId, CGU_FDIV_SETUP_T fdivCfg, u32 enable);
 * CGU driver inline (ANSI C99 based) functions
 **********************************************************************/
 /* enable / disable the requested clock in CGU */
+static inline int cgu_clk_enable(CGU_CLOCK_ID_T clkid)
+{
+  CGU_SB->clk_pcr[clkid] |= CGU_SB_PCR_RUN;
+  return 0;
+}
+static inline void cgu_clk_disable(CGU_CLOCK_ID_T clkid)
+{
+  CGU_SB->clk_pcr[clkid] &= ~CGU_SB_PCR_RUN;
+}
+
 static inline void cgu_clk_en_dis(CGU_CLOCK_ID_T clkid, u32 enable)
 {
   if (enable)
-  {
-    CGU_SB->clk_pcr[clkid] |= CGU_SB_PCR_RUN;
-  }
+    cgu_clk_enable(clkid);
   else
-  {
-    CGU_SB->clk_pcr[clkid] &= ~CGU_SB_PCR_RUN;
-  }
-
+    cgu_clk_disable(clkid);
 }
+
 /* Issue a software reset to the requested module */
 static inline void cgu_soft_reset_module(CGU_MOD_ID_T modId)
 {

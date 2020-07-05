@@ -12,6 +12,8 @@
 #ifndef __I2C_PNX_H__
 #define __I2C_PNX_H__
 
+#include <linux/i2c.h>
+
 #define I2C_PNX_TIMEOUT_DEFAULT		10 /* msec */
 #define I2C_PNX_SPEED_KHZ_DEFAULT	100
 #define I2C_PNX_REGION_SIZE	0x100

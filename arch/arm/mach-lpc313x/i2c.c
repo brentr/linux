@@ -23,22 +23,20 @@
 
 #include <linux/delay.h>
 #include <linux/clk.h>
-#include <linux/i2c.h>
 #include <linux/i2c-pnx.h>
 #include <linux/platform_device.h>
 #include <linux/err.h>
 #include <mach/hardware.h>
-#include <mach/i2c.h>
 #include <mach/gpio.h>
 #include <mach/irqs.h>
 
 #define LPC313x_I2C0_SLV_ADDR            __REG (I2C0_PHYS + 0x014)
 #define LPC313x_I2C1_SLV_ADDR            __REG (I2C1_PHYS + 0x014)
-#define __initdata
+
 static struct i2c_pnx_algo_data lpc_algo_data0 = {
 	.clk = CGU_SB_I2C0_PCLK_ID
 };
-static struct resource lpcI2C0_resources[] __initdata = {
+static struct resource lpcI2C0_resources[] = {
 	{
 		.start  = I2C0_PHYS,
 		.end	= I2C0_PHYS + I2C_PNX_REGION_SIZE,
@@ -50,7 +48,7 @@ static struct resource lpcI2C0_resources[] __initdata = {
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
 	}
 };
-static struct platform_device i2c0_bus __initdata = {
+static struct platform_device i2c0_bus = {
 	.name = "pnx-i2c",
 	.id = 0,
 	.resource = lpcI2C0_resources,
@@ -63,7 +61,7 @@ static struct platform_device i2c0_bus __initdata = {
 static struct i2c_pnx_algo_data lpc_algo_data1 = {
 	.clk = CGU_SB_I2C1_PCLK_ID
 };
-static struct resource lpcI2C1_resources[] __initdata = {
+static struct resource lpcI2C1_resources[] = {
 	{
 		.start  = I2C1_PHYS,
 		.end	= I2C1_PHYS + I2C_PNX_REGION_SIZE,
@@ -75,7 +73,7 @@ static struct resource lpcI2C1_resources[] __initdata = {
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
 	},
 };
-static struct platform_device i2c1_bus __initdata = {
+static struct platform_device i2c1_bus = {
 	.name = "pnx-i2c",
 	.id = 1,
 	.resource = lpcI2C1_resources,

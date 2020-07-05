@@ -14,7 +14,6 @@
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
-#include <linux/i2c.h>
 #include <linux/timer.h>
 #include <linux/completion.h>
 #include <linux/platform_device.h>

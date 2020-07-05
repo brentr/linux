@@ -754,6 +754,17 @@ void add_device_randomness(const void *buf, unsigned int size)
 }
 EXPORT_SYMBOL(add_device_randomness);
 
+/*
+ * call after add_device_randomness if the source was trustworthy
+ */
+void trust_device_randomness(const char *RNGname)
+{
+	input_pool.initialized = nonblocking_pool.initialized = 1;
+	prandom_reseed_late();
+	pr_info("random: seeded from %s\n", RNGname);
+}
+EXPORT_SYMBOL(trust_device_randomness);
+
 static struct timer_rand_state input_timer_state = INIT_TIMER_RAND_STATE;
 
 /*

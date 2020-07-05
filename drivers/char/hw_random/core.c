@@ -82,8 +82,11 @@ static void add_early_randomness(struct hwrng *rng)
 	int bytes_read;
 
 	bytes_read = rng_get_data(rng, bytes, sizeof(bytes), 1);
-	if (bytes_read > 0)
+	if (bytes_read > 0) {
 		add_device_randomness(bytes, bytes_read);
+		if (bytes_read==sizeof(bytes) && rng->quality > 999)
+			trust_device_randomness(rng->name);
+	}
 }
 
 static inline int hwrng_init(struct hwrng *rng)
@@ -104,7 +107,6 @@ static inline int hwrng_init(struct hwrng *rng)
 		kthread_stop(hwrng_fill);
 	if (current_quality > 0 && !hwrng_fill)
 		start_khwrngd();
-
 	return 0;
 }
 

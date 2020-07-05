@@ -112,10 +112,7 @@ static int lpc313x_rng_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_register;
 
-	dev_info(&pdev->dev, "rng initialized\n");
-
 	rng_dev = pdev;
-
 	return 0;
 
 err_register:

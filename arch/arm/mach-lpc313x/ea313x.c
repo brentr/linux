@@ -201,7 +201,7 @@ static int mci_init(u32 slot_id, irq_handler_t irqhdlr, void *data)
 	"mmc-cd",
 	&irq_data);
 	/****temporary for PM testing */
-	enable_irq_wake(irq_data.irq);
+//	enable_irq_wake(irq_data.irq);
 
 	return irq_data.irq;
 }

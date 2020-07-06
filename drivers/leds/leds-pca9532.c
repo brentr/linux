@@ -293,7 +293,7 @@ static int pca9532_gpio_direction_output(struct gpio_chip *gc, unsigned offset, 
 }
 #endif /* CONFIG_LEDS_PCA9532_GPIO */
 
-static int __init pca9532_destroy_devices(struct pca9532_data *data, int n_devs)
+static int pca9532_destroy_devices(struct pca9532_data *data, int n_devs)
 {
 	int i = n_devs;
 
@@ -330,13 +330,7 @@ static int __init pca9532_destroy_devices(struct pca9532_data *data, int n_devs)
 static int __exit pca9532_remove(struct i2c_client *client)
 {
 	struct pca9532_data *data = i2c_get_clientdata(client);
-	int err;
-
-	err = pca9532_destroy_devices(data, data->chip_info->num_leds);
-	if (err)
-		return err;
-
-	return 0;
+	return pca9532_destroy_devices(data, data->chip_info->num_leds);
 }
 #endif
 
@@ -481,7 +475,7 @@ static int __init pca9532_probe(struct i2c_client *client,
 	return retval;
 }
 
-static struct i2c_driver __refdata pca9532_driver = {
+static struct i2c_driver pca9532_driver __refdata = {
 	.driver = {
 		.name = "leds-pca953x",
 	},

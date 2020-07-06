@@ -769,7 +769,7 @@ static int __gpiod_request(struct gpio_desc *desc, const char *label)
 	 */
 
 	if (test_and_set_bit(FLAG_REQUESTED, &desc->flags) == 0) {
-		desc_set_label(desc, label ? : "?");
+		desc_set_label(desc, label);
 		status = 0;
 	} else {
 		status = -EBUSY;
@@ -890,7 +890,7 @@ const char *gpiochip_is_requested(struct gpio_chip *chip, unsigned offset)
 
 	if (test_bit(FLAG_REQUESTED, &desc->flags) == 0)
 		return NULL;
-	return desc->label;
+	return desc->label ?: "";
 }
 EXPORT_SYMBOL_GPL(gpiochip_is_requested);
 
@@ -1772,11 +1772,11 @@ static void gpiolib_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 		gpiod_get_direction(gdesc);
 		is_out = test_bit(FLAG_IS_OUT, &gdesc->flags);
 		is_irq = test_bit(FLAG_USED_AS_IRQ, &gdesc->flags);
-		seq_printf(s, " gpio-%-3d (%-20.20s) %s %s %s",
-			gpio, gdesc->label,
-			is_out ? "out" : "in ",
+		seq_printf(s, " gpio-%-3d (%-20.20s) %sput %s %s",
+			gpio, gdesc->label ?: "<unlabeled>",
+			is_out ? "out" : "in",
 			chip->get
-				? (chip->get(chip, i) ? "hi" : "lo")
+				? (chip->get(chip, i) ? "high" : "low")
 				: "?  ",
 			is_irq ? "IRQ" : "   ");
 		seq_printf(s, "\n");

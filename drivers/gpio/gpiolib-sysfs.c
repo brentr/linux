@@ -435,7 +435,7 @@ static ssize_t export_store(struct class *class,
 	 * they may be undone on its behalf too.
 	 */
 
-	status = gpiod_request(desc, "sysfs");
+	status = gpiod_request(desc, NULL);
 	if (status < 0) {
 		if (status == -EPROBE_DEFER)
 			status = -ENODEV;
@@ -566,6 +566,8 @@ int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 	offset = gpio_chip_hwgpio(desc);
 	if (desc->chip->names && desc->chip->names[offset])
 		ioname = desc->chip->names[offset];
+	if (!ioname)
+		ioname = desc->label;
 
 	dev = device_create_with_groups(&gpio_class, desc->chip->dev,
 					MKDEV(0, 0), desc, gpio_groups,

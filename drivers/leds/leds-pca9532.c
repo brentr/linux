@@ -456,6 +456,7 @@ static int __init pca9532_probe(struct i2c_client *client,
 	struct pca9532_data *data = i2c_get_clientdata(client);
 	struct pca9532_platform_data *pca9532_pdata =
 			dev_get_platdata(&client->dev);
+	int retval;
 
 	if (!pca9532_pdata)
 		return -EIO;
@@ -470,12 +471,14 @@ static int __init pca9532_probe(struct i2c_client *client,
 
 	data->chip_info = &pca9532_chip_info_tbl[id->driver_data];
 
-	dev_info(&client->dev, "setting platform data\n");
 	i2c_set_clientdata(client, data);
 	data->client = client;
 	mutex_init(&data->update_lock);
 
-	return pca9532_configure(client, data, pca9532_pdata);
+	retval = pca9532_configure(client, data, pca9532_pdata);
+	if (!retval)
+		retval = pca9532_pdata->setup(pca9532_pdata);
+	return retval;
 }
 
 static struct i2c_driver __refdata pca9532_driver = {

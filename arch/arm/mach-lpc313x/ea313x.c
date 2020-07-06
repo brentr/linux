@@ -773,6 +773,27 @@ static struct map_desc ea313x_io_desc[] __initdata = {
 };
 
 #include <linux/leds-pca9532.h>
+
+static int setupI2Cgpio(struct pca9532_platform_data *leds)
+{
+	struct pca9532_ledcfg* led = leds->leds;
+	int gpio = leds->gpio_base;
+	int end = gpio + 5; //first five leds are joystick inputs
+	while (gpio < end) {
+		exportBootI(gpio, led->name);  //allow redefinition as output
+		led++; gpio++;
+	}
+	end = gpio + 3;  //next three are gpio outputs
+	while (gpio < end) {
+		exportGPO(gpio, led->name, 0);  //all outputs initially off
+		led++; gpio++;
+	}
+	gpio_sysfs_set_active_low(GPIO_PCA9532_PWRCTRL, 1);
+	lpc31_USBpower = GPIO_PCA9532_USBPWR;
+	lpc313x_vbus_power(1);
+	return 0;
+}
+
 #define extraGPIO(label)  {.name = label, .type = PCA9532_TYPE_GPIO}
 #define extraLED(label) \
   {.name = label ":red", .type = PCA9532_TYPE_LED, .state = PCA9532_OFF}
@@ -780,14 +801,16 @@ static struct map_desc ea313x_io_desc[] __initdata = {
 //LEDs and control signals driven from the PCA9532
 static struct pca9532_platform_data pca9532LEDs = {
 	{ //joystick inputs
-		extraGPIO("joy0"), extraGPIO("joy1"), extraGPIO("joy2"),
-		extraGPIO("joy3"), extraGPIO("joy4"),
+		extraGPIO("joyTop"),
+		extraGPIO("joyUp"), extraGPIO("joyRight"),
+		extraGPIO("joyLeft"), extraGPIO("joyDown"),
 		extraGPIO("OTP"), extraGPIO("USB+5V"), extraGPIO("PWR_CTRL"),
 		extraLED("LED5"),extraLED("LED6"), extraLED("LED7"), extraLED("LED8"),
 		extraLED("LED9"),extraLED("LED10"),extraLED("LED11"),extraLED("LED12")
 	},
-	.psc = {152/60 - 1, 0},  //dim at approximately 60hz
-	.gpio_base = BASE_GPIO_PCA9532
+	.psc = {152/60 - 1, 0},	//dim at approximately 60hz
+	.gpio_base = BASE_GPIO_PCA9532,
+	.setup = setupI2Cgpio  //defer until I2C bus LED driver is ready
 };
 
 static struct i2c_board_info ea313x_i2c_devices[] __initdata = {
@@ -949,7 +972,7 @@ static void __init ea313x_init(void)
       printk("Embedded Artists LPC31xx (boardID=0x%02x)\n", boardID);
 	      /* set the I2SRX_WS0 pin as GPIO_IN for vbus overcurrent flag */
 	  i2c_register_board_info(0, ea313x_i2c_devices,
-			  ARRAY_SIZE(ea313x_i2c_devices));
+			  ARRAY_SIZE(ea313x_i2c_devices)); //setup deferred until I2C ready
       gpio_sysfs_set_active_low(GPIO_I2SRX_WS0, 1);
       exportGPI(GPIO_I2SRX_WS0, "USBoverload");
       ea_add_device_dm9000();
@@ -984,10 +1007,10 @@ void lpc313x_vbus_power(int enable)
 	if (lpc31_USBpower >= 0) {
 		if (enable) {
 			printk (KERN_INFO "USB power ON\n");
-			gpio_set_value(lpc31_USBpower, 1);
+			gpio_set_value_cansleep(lpc31_USBpower, 1);
 		} else {
 			printk (KERN_INFO "USB power OFF\n");
-			gpio_set_value(lpc31_USBpower, 0);
+			gpio_set_value_cansleep(lpc31_USBpower, 0);
 		}
 	}
 }

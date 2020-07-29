@@ -470,7 +470,7 @@ static int __init pca9532_probe(struct i2c_client *client,
 	mutex_init(&data->update_lock);
 
 	retval = pca9532_configure(client, data, pca9532_pdata);
-	if (!retval)
+	if (!retval && pca9532_pdata->setup)
 		retval = pca9532_pdata->setup(pca9532_pdata);
 	return retval;
 }

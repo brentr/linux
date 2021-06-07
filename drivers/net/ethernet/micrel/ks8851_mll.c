@@ -415,7 +415,6 @@ union ks_tx_hdr {
  * @pdev	: Pointer to platform device.
  * @mii		: The MII state information for the mii calls.
  * @frame_head_info   	: frame header information for multi-pkt rx.
- * @statelock	: Lock on this structure for tx list.
  * @msg_enable	: The message flags controlling driver output (see ethtool).
  * @frame_cnt  	: number of frames received.
  * @bus_width  	: i/o bus width.
@@ -440,10 +439,6 @@ union ks_tx_hdr {
  * of the chip registers are not accessible until the transfer is finished and
  * the DMA has been de-asserted.
  *
- * The @statelock is used to protect information in the structure which may
- * need to be accessed via several sources, such as the network driver layer
- * or one of the work queues.
- *
  */
 
 /* Receive multiplex framer header info */
@@ -461,7 +456,6 @@ struct ks_net {
 	struct platform_device *pdev;
 	struct mii_if_info	mii;
 	struct type_frame_head	*frame_head_info;
-	spinlock_t		statelock;
 	u32			frame_cnt;
 	ushort		bus_width;
 
@@ -589,10 +583,12 @@ static inline void ks_outblk(struct ks_net *ks, u16 *wptr, u32 len)
 		iowrite16(*wptr++, ks->hw_addr);
 }
 
+#if 0
 static void ks_disable_int(struct ks_net *ks)
 {
 	ks_wrreg16(ks, KS_IER, 0x0000);
 }  /* ks_disable_int */
+#endif
 
 static void ks_enable_int(struct ks_net *ks)
 {
@@ -989,7 +985,7 @@ static int ks_net_open(struct net_device *netdev)
  * ks_net_stop - close network device
  * @netdev: The device being closed.
  *
- * Called to close down a network device which has been active. Cancell any
+ * Called to close down a network device which has been active. Cancel any
  * work, shutdown the RX and TX process and then place the chip into a low
  * power state whilst it is not being used.
  */
@@ -1031,7 +1027,6 @@ static int ks_net_stop(struct net_device *netdev)
  *	3. write pkt data
  *	4. reset sudo DMA Mode
  *	5. reset sudo DMA mode
- *	6. Wait until pkt is out
  */
 static void ks_write_qmu(struct ks_net *ks, u8 *pdata, u16 len)
 {
@@ -1039,6 +1034,8 @@ static void ks_write_qmu(struct ks_net *ks, u8 *pdata, u16 len)
 	ks->txh.txw[0] = 0;
 	ks->txh.txw[1] = cpu_to_le16(len);
 
+	/* 0. wait until any previously queued packet is sent */
+	while (ks_rdreg16(ks, KS_TXQCR) & TXQCR_METFE);
 	/* 1. set sudo-DMA mode */
 	ks_wrreg8(ks, KS_RXQCR, (ks->rc_rxqcr | RXQCR_SDA) & 0xff);
 	/* 2. write status/lenth info */
@@ -1049,9 +1046,6 @@ static void ks_write_qmu(struct ks_net *ks, u8 *pdata, u16 len)
 	ks_wrreg8(ks, KS_RXQCR, ks->rc_rxqcr);
 	/* 5. Enqueue Tx(move the pkt from TX buffer into TXQ) */
 	ks_wrreg16(ks, KS_TXQCR, TXQCR_METFE);
-	/* 6. wait until TXQCR_METFE is auto-cleared */
-	while (ks_rdreg16(ks, KS_TXQCR) & TXQCR_METFE)
-		;
 }
 
 /**
@@ -1060,33 +1054,29 @@ static void ks_write_qmu(struct ks_net *ks, u8 *pdata, u16 len)
  * @netdev	: The device used to transmit the packet.
  *
  * Called by the network layer to transmit the @skb.
- * spin_lock_irqsave is required because tx and rx should be mutual exclusive.
+ * spin_lock_irqsave is required because tx and rx should be mutually exclusive.
  * So while tx is in-progress, prevent IRQ interrupt from happenning.
  */
 static int ks_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
 	int retv = NETDEV_TX_OK;
-	struct ks_net *ks = netdev_priv(netdev);
-
-	disable_irq(netdev->irq);
-	ks_disable_int(ks);
-	spin_lock(&ks->statelock);
-
-	/* Extra space are required:
-	*  4 byte for alignment, 4 for status/length, 4 for CRC
-	*/
-
-	if (likely(ks_tx_fifo_space(ks) >= skb->len + 12)) {
-		ks_write_qmu(ks, skb->data, skb->len);
-		/* add tx statistics */
-		netdev->stats.tx_bytes += skb->len;
-		netdev->stats.tx_packets++;
-		dev_kfree_skb(skb);
-	} else if (ks_rdreg16(ks, KS_P1SR) & P1SR_LINK_GOOD)
-		retv = NETDEV_TX_BUSY;  //silently drop packet if link is not good
-	spin_unlock(&ks->statelock);
-	ks_enable_int(ks);
-	enable_irq(netdev->irq);
+	if (skb->len < 6*1024-12) { //fail if packet too big
+	  struct ks_net *ks = netdev_priv(netdev);
+	  disable_irq(netdev->irq);
+	  if (ks_rdreg16(ks, KS_P1SR) & P1SR_LINK_GOOD) {  //fail if link is not good
+    // The queue always has room enough for one packet!
+	    /* Extra space = 4 byte for alignment + 4 for status/length + 4 for CRC */
+    //	if (likely(ks_tx_fifo_space(ks) >= skb->len + 12)) {  //always true!
+		  ks_write_qmu(ks, skb->data, skb->len);
+		  /* add tx statistics */
+		  netdev->stats.tx_bytes += skb->len;
+		  netdev->stats.tx_packets++;
+		  dev_kfree_skb(skb);
+	  //  }  else
+    //		retv = NETDEV_TX_BUSY;  //silently drop packet if link is not good
+	  }
+	  enable_irq(netdev->irq);
+  }
 	return retv;
 }
 
@@ -1637,7 +1627,6 @@ static int __init ks8851_probe(struct platform_device *pdev)
 	ks->pdev = pdev;
 
 	mutex_init(&ks->lock);
-	spin_lock_init(&ks->statelock);
 
 	netdev->netdev_ops = &ks_netdev_ops;
 	netdev->ethtool_ops = &ks_ethtool_ops;

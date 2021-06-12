@@ -60,6 +60,10 @@
 
 #define	DRV_NAME	"ks8851_mll"
 
+#define TX_PACKET_SIZE(dataSize)  ((dataSize)+7)
+#define TX_FIFO_SIZE		(6*1024)
+#define TX_FIFO_IRQ_DISARM (TX_FIFO_SIZE/4+1)
+
 #define MAX_RECV_FRAMES			192  /* in case short frames queued */
 #define MAX_BUF_SIZE			2048
 #define TX_BUF_SIZE			2000
@@ -921,11 +925,15 @@ static irqreturn_t ks_irq(int irq, void *pw)
 	if (unlikely(status & IRQ_LCI))
 		ks_update_link_status(netdev, ks);
 
-	if (unlikely(status & IRQ_TXI))
-		netif_wake_queue(netdev);
-
+	if (likely(status & IRQ_TXSAI)) {
+		int txmir = ks_rdreg16(ks, KS_TXMIR);
+		if (txmir >= TX_PACKET_SIZE(netdev->mtu)) {
+		  ks_wrreg16(ks, KS_TXNTFSR, TX_FIFO_IRQ_DISARM);
+		  netif_wake_queue(netdev);
+		}else
+			netdev_err(netdev, "TXSAI w/only %d bytes space\n", txmir);
+	}
 	if (unlikely(status & IRQ_LDI)) {
-
 		u16 pmecr = ks_rdreg16(ks, KS_PMECR);
 		pmecr &= ~PMECR_WKEVT_MASK;
 		ks_wrreg16(ks, KS_PMECR, pmecr | PMECR_WKEVT_LINK);
@@ -1012,12 +1020,21 @@ static int ks_net_stop(struct net_device *netdev)
 	ks_set_powermode(ks, PMECR_PM_SOFTDOWN);
 	free_irq(netdev->irq, netdev);
 	mutex_unlock(&ks->lock);
-	netdev_info(netdev, "DOWN\n");
 	return 0;
 }
 
+static void stop_queue(struct ks_net *ks)
+/*
+ * stop queue and arm TX FIFO interrupt
+ * device interrupts must be disabled!
+ */
+{
+	struct net_device *netdev = ks->netdev;
+	ks_wrreg16(ks, KS_TXNTFSR, (TX_FIFO_SIZE-(TX_PACKET_SIZE(netdev->mtu)))/4);
+	netif_stop_queue(netdev);
+}
 
-/**
+/*
  * ks_write_qmu - write 1 pkt data to the QMU.
  * @ks: The chip information
  * @pdata: buffer address to save 1 pkt
@@ -1028,6 +1045,7 @@ static int ks_net_stop(struct net_device *netdev)
  *	3. write pkt data
  *	4. reset sudo DMA Mode
  *	5. reset sudo DMA mode
+ *  6. start dequeuing packets
  */
 static void ks_write_qmu(struct ks_net *ks, u8 *pdata, u16 len)
 {
@@ -1035,18 +1053,16 @@ static void ks_write_qmu(struct ks_net *ks, u8 *pdata, u16 len)
 	ks->txh.txw[0] = 0;
 	ks->txh.txw[1] = cpu_to_le16(len);
 
-	/* 0. wait until queue is empty */
-	while (ks_rdreg16(ks, KS_TXQCR) & TXQCR_METFE);
 	/* 1. set sudo-DMA mode */
-	ks_wrreg8(ks, KS_RXQCR, (ks->rc_rxqcr | RXQCR_SDA) & 0xff);
+	ks_wrreg8(ks, KS_RXQCR, ks->rc_rxqcr | RXQCR_SDA);
 	/* 2. write status/lenth info */
 	ks_outblk(ks, ks->txh.txw, 4);
 	/* 3. write pkt data */
 	ks_outblk(ks, (u16 *)pdata, ALIGN(len, 4));
 	/* 4. reset sudo-DMA mode */
 	ks_wrreg8(ks, KS_RXQCR, ks->rc_rxqcr);
-	/* 5. Enqueue Tx(move the pkt from TX buffer into TXQ) */
-	ks_wrreg16(ks, KS_TXQCR, TXQCR_METFE);
+	/* 5. start dequeuing packets */
+	ks_wrreg16(ks, KS_TXQCR, TXQCR_AETFE | TXQCR_TXQMAM);
 }
 
 /**
@@ -1058,11 +1074,22 @@ static void ks_write_qmu(struct ks_net *ks, u8 *pdata, u16 len)
  */
 static int ks_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
+	int txmir;
 	struct ks_net *ks = netdev_priv(netdev);
 	disable_irq(netdev->irq);
+	txmir = ks_rdreg16(ks, KS_TXMIR);
+
+	if (unlikely(txmir < TX_PACKET_SIZE(skb->len))) {
+		stop_queue(ks);
+		enable_irq(netdev->irq);
+		netdev_err(netdev, "BUSY\n");
+		return NETDEV_TX_BUSY;
+	}
+
 	ks_write_qmu(ks, skb->data, skb->len);
+	if (txmir - skb->len < TX_PACKET_SIZE(netdev->mtu))
+		stop_queue(ks);
 	enable_irq(netdev->irq);
-	/* add tx statistics */
 	netdev->stats.tx_bytes += skb->len;
 	netdev->stats.tx_packets++;
 	dev_kfree_skb(skb);
@@ -1496,6 +1523,8 @@ static void __init ks_setup(struct ks_net *ks)
 	ks->rc_rxqcr = RXQCR_CMD_CNTL;
 	ks_wrreg16(ks, KS_RXQCR, ks->rc_rxqcr);
 
+	/* setup TXQ */
+	ks_wrreg16(ks, KS_TXNTFSR, TX_FIFO_IRQ_DISARM);
 	ks_wrreg16(ks, KS_TXCR, TXCR_TXFCE|TXCR_TXPE|TXCR_TXCRC|TXCR_TCGIP);
 
 	w = RXCR1_RXFCE|RXCR1_RXBE|RXCR1_RXUE|RXCR1_RXME|RXCR1_RXIPFCC;
@@ -1517,7 +1546,7 @@ static void __init ks_setup_int(struct ks_net *ks)
 	ks_wrreg16(ks, KS_ISR, 0xffff);
 
 	/* Enables the interrupts of the hardware. */
-	ks->rc_ier = (IRQ_LCI | IRQ_TXI | IRQ_RXI);
+	ks->rc_ier = IRQ_LCI | IRQ_RXI | IRQ_TXSAI;
 }  /* ks_setup_int */
 
 static void __init ks_hw_init(struct ks_net *ks)
@@ -1740,7 +1769,7 @@ static struct platform_driver __refdata ks8851_platform_driver = {
 module_platform_driver(ks8851_platform_driver);
 
 MODULE_DESCRIPTION("KS8851 MLL Network driver");
-MODULE_AUTHOR("David Choi <david.choi@micrel.com>");
+MODULE_AUTHOR("David Choi <david.choi@micrel.com>, brent@mbari.org");
 MODULE_LICENSE("GPL");
 module_param(p1cr, ushort, 0644);
 MODULE_PARM_DESC(p1cr,

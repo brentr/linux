@@ -22,6 +22,8 @@
  */
 
 /**
+ * Revised:  6/11/21 brent@mbari.org
+ * 	pluged memory leak by simplifying ks_start_xmit
  * Revised:  6/20/20 brent@mbari.org
  *  Added support for setting MAC address via bootline option
  *  Added support for setting power saving mode
@@ -875,16 +877,14 @@ static void ks_rcv(struct ks_net *ks, struct net_device *netdev)
 static void ks_update_link_status(struct net_device *netdev, struct ks_net *ks)
 {
 	/* check the status of the link */
-	u32 link_up_status;
-	if (ks_rdreg16(ks, KS_P1SR) & P1SR_LINK_GOOD) {
+	const char *link_up_status = "UP";
+	if (ks_rdreg16(ks, KS_P1SR) & P1SR_LINK_GOOD)
 		netif_carrier_on(netdev);
-		link_up_status = true;
-	} else {
+	else {
 		netif_carrier_off(netdev);
-		link_up_status = false;
+		link_up_status = "DOWN";
 	}
-	netif_dbg(ks, link, ks->netdev,
-		  "%s: %s\n", __func__, link_up_status ? "UP" : "DOWN");
+	netif_dbg(ks, link, netdev, "%s: %s\n", __func__, link_up_status);
 }
 
 /**
@@ -932,7 +932,7 @@ static irqreturn_t ks_irq(int irq, void *pw)
 	}
 
 	if (unlikely(status & IRQ_RXOI))
-		ks->netdev->stats.rx_over_errors++;
+		netdev->stats.rx_over_errors++;
 	/* this should be the last in IRQ handler*/
 	ks_restore_cmd_reg(ks);
 	return IRQ_HANDLED;
@@ -956,7 +956,7 @@ static int ks_net_open(struct net_device *netdev)
 	 * else at the moment.
 	 */
 
-	netif_dbg(ks, ifup, ks->netdev, "%s - entry\n", __func__);
+	netif_dbg(ks, ifup, netdev, "%s - entry\n", __func__);
 
 	/* reset the HW */
 	err = request_irq(netdev->irq, ks_irq, KS_INT_FLAGS, DRV_NAME, netdev);
@@ -969,15 +969,16 @@ static int ks_net_open(struct net_device *netdev)
 	ks_wake(ks);
 	ks_wrreg16(ks, KS_P1CR, p1cr);
 	ks_wrreg16(ks, KS_ISR, 0xffff);
+	netif_carrier_off(netdev);
 	ks_enable_int(ks);
 	ks_enable_qmu(ks);
-	netif_start_queue(ks->netdev);
+	netif_start_queue(netdev);
 
   /* switch to selected power saving mode */
 	if (pmMode >= ARRAY_SIZE(pmModes))
 		pmMode=0;
 	ks_set_powermode(ks, pmModes[pmMode]);
-	netdev_info(ks->netdev, "UP (power=%u, p1cr=0x%04x)\n", pmMode, p1cr);
+	netdev_info(netdev, "power=%u, p1cr=0x%04x\n", pmMode, p1cr);
 	return 0;
 }
 
@@ -1011,7 +1012,7 @@ static int ks_net_stop(struct net_device *netdev)
 	ks_set_powermode(ks, PMECR_PM_SOFTDOWN);
 	free_irq(netdev->irq, netdev);
 	mutex_unlock(&ks->lock);
-	netdev_info(ks->netdev, "DOWN\n");
+	netdev_info(netdev, "DOWN\n");
 	return 0;
 }
 
@@ -1034,7 +1035,7 @@ static void ks_write_qmu(struct ks_net *ks, u8 *pdata, u16 len)
 	ks->txh.txw[0] = 0;
 	ks->txh.txw[1] = cpu_to_le16(len);
 
-	/* 0. wait until any previously queued packet is sent */
+	/* 0. wait until queue is empty */
 	while (ks_rdreg16(ks, KS_TXQCR) & TXQCR_METFE);
 	/* 1. set sudo-DMA mode */
 	ks_wrreg8(ks, KS_RXQCR, (ks->rc_rxqcr | RXQCR_SDA) & 0xff);
@@ -1054,30 +1055,18 @@ static void ks_write_qmu(struct ks_net *ks, u8 *pdata, u16 len)
  * @netdev	: The device used to transmit the packet.
  *
  * Called by the network layer to transmit the @skb.
- * spin_lock_irqsave is required because tx and rx should be mutually exclusive.
- * So while tx is in-progress, prevent IRQ interrupt from happenning.
  */
 static int ks_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
-	int retv = NETDEV_TX_OK;
-	if (skb->len < 6*1024-12) { //fail if packet too big
-	  struct ks_net *ks = netdev_priv(netdev);
-	  disable_irq(netdev->irq);
-	  if (ks_rdreg16(ks, KS_P1SR) & P1SR_LINK_GOOD) {  //fail if link is not good
-    // The queue always has room enough for one packet!
-	    /* Extra space = 4 byte for alignment + 4 for status/length + 4 for CRC */
-    //	if (likely(ks_tx_fifo_space(ks) >= skb->len + 12)) {  //always true!
-		  ks_write_qmu(ks, skb->data, skb->len);
-		  /* add tx statistics */
-		  netdev->stats.tx_bytes += skb->len;
-		  netdev->stats.tx_packets++;
-		  dev_kfree_skb(skb);
-	  //  }  else
-    //		retv = NETDEV_TX_BUSY;  //silently drop packet if link is not good
-	  }
-	  enable_irq(netdev->irq);
-  }
-	return retv;
+	struct ks_net *ks = netdev_priv(netdev);
+	disable_irq(netdev->irq);
+	ks_write_qmu(ks, skb->data, skb->len);
+	enable_irq(netdev->irq);
+	/* add tx statistics */
+	netdev->stats.tx_bytes += skb->len;
+	netdev->stats.tx_packets++;
+	dev_kfree_skb(skb);
+ 	return NETDEV_TX_OK;
 }
 
 /**

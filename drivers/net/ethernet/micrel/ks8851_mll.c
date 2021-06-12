@@ -60,10 +60,6 @@
 
 #define	DRV_NAME	"ks8851_mll"
 
-#define TX_PACKET_SIZE(dataSize)  ((dataSize)+7)
-#define TX_FIFO_SIZE		(6*1024)
-#define TX_FIFO_IRQ_DISARM (TX_FIFO_SIZE/4+1)
-
 #define MAX_RECV_FRAMES			192  /* in case short frames queued */
 #define MAX_BUF_SIZE			2048
 #define TX_BUF_SIZE			2000
@@ -213,7 +209,7 @@
 #define RXFHBCR_CNT_MASK		0x0FFF
 
 #define KS_TXQCR			0x80
-#define TXQCR_AETFE			(1 << 2)
+//#define TXQCR_AETFE			(1 << 2)   This is broken per chip errata
 #define TXQCR_TXQMAM			(1 << 1)
 #define TXQCR_METFE			(1 << 0)
 
@@ -570,23 +566,19 @@ static void ks_wrreg16(struct ks_net *ks, int offset, u16 value)
  */
 static inline void ks_inblk(struct ks_net *ks, u16 *wptr, u32 len)
 {
-	len >>= 1;
-	while (len--)
-		*wptr++ = (u16)ioread16(ks->hw_addr);
+	ioread16_rep(ks->hw_addr, wptr, len / 2);
 }
 
 /**
  * ks_outblk - write data to QMU. This is called after sudo DMA mode enabled.
  * @ks: The chip information
- * @wptr: buffer address
+ * @rptr: buffer address
  * @len: length in byte to write
  *
  */
-static inline void ks_outblk(struct ks_net *ks, u16 *wptr, u32 len)
+static inline void ks_outblk(struct ks_net *ks, const u16 *rptr, u32 len)
 {
-	len >>= 1;
-	while (len--)
-		iowrite16(*wptr++, ks->hw_addr);
+	iowrite16_rep(ks->hw_addr, rptr, len/2);
 }
 
 #if 0
@@ -925,14 +917,9 @@ static irqreturn_t ks_irq(int irq, void *pw)
 	if (unlikely(status & IRQ_LCI))
 		ks_update_link_status(netdev, ks);
 
-	if (likely(status & IRQ_TXSAI)) {
-		int txmir = ks_rdreg16(ks, KS_TXMIR);
-		if (txmir >= TX_PACKET_SIZE(netdev->mtu)) {
-		  ks_wrreg16(ks, KS_TXNTFSR, TX_FIFO_IRQ_DISARM);
-		  netif_wake_queue(netdev);
-		}else
-			netdev_err(netdev, "TXSAI w/only %d bytes space\n", txmir);
-	}
+	if (likely(status & IRQ_TXI))
+		netif_wake_queue(netdev);
+
 	if (unlikely(status & IRQ_LDI)) {
 		u16 pmecr = ks_rdreg16(ks, KS_PMECR);
 		pmecr &= ~PMECR_WKEVT_MASK;
@@ -1023,17 +1010,6 @@ static int ks_net_stop(struct net_device *netdev)
 	return 0;
 }
 
-static void stop_queue(struct ks_net *ks)
-/*
- * stop queue and arm TX FIFO interrupt
- * device interrupts must be disabled!
- */
-{
-	struct net_device *netdev = ks->netdev;
-	ks_wrreg16(ks, KS_TXNTFSR, (TX_FIFO_SIZE-(TX_PACKET_SIZE(netdev->mtu)))/4);
-	netif_stop_queue(netdev);
-}
-
 /*
  * ks_write_qmu - write 1 pkt data to the QMU.
  * @ks: The chip information
@@ -1045,12 +1021,10 @@ static void stop_queue(struct ks_net *ks)
  *	3. write pkt data
  *	4. reset sudo DMA Mode
  *	5. reset sudo DMA mode
- *  6. start dequeuing packets
  */
 static void ks_write_qmu(struct ks_net *ks, u8 *pdata, u16 len)
 {
 	/* start header at txb[0] to align txw entries */
-	ks->txh.txw[0] = 0;
 	ks->txh.txw[1] = cpu_to_le16(len);
 
 	/* 1. set sudo-DMA mode */
@@ -1062,7 +1036,7 @@ static void ks_write_qmu(struct ks_net *ks, u8 *pdata, u16 len)
 	/* 4. reset sudo-DMA mode */
 	ks_wrreg8(ks, KS_RXQCR, ks->rc_rxqcr);
 	/* 5. start dequeuing packets */
-	ks_wrreg16(ks, KS_TXQCR, TXQCR_AETFE | TXQCR_TXQMAM);
+	ks_wrreg16(ks, KS_TXQCR, TXQCR_METFE);
 }
 
 /**
@@ -1074,21 +1048,10 @@ static void ks_write_qmu(struct ks_net *ks, u8 *pdata, u16 len)
  */
 static int ks_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
-	int txmir;
 	struct ks_net *ks = netdev_priv(netdev);
 	disable_irq(netdev->irq);
-	txmir = ks_rdreg16(ks, KS_TXMIR);
-
-	if (unlikely(txmir < TX_PACKET_SIZE(skb->len))) {
-		stop_queue(ks);
-		enable_irq(netdev->irq);
-		netdev_err(netdev, "BUSY\n");
-		return NETDEV_TX_BUSY;
-	}
-
 	ks_write_qmu(ks, skb->data, skb->len);
-	if (txmir - skb->len < TX_PACKET_SIZE(netdev->mtu))
-		stop_queue(ks);
+	netif_stop_queue(netdev);
 	enable_irq(netdev->irq);
 	netdev->stats.tx_bytes += skb->len;
 	netdev->stats.tx_packets++;
@@ -1523,8 +1486,6 @@ static void __init ks_setup(struct ks_net *ks)
 	ks->rc_rxqcr = RXQCR_CMD_CNTL;
 	ks_wrreg16(ks, KS_RXQCR, ks->rc_rxqcr);
 
-	/* setup TXQ */
-	ks_wrreg16(ks, KS_TXNTFSR, TX_FIFO_IRQ_DISARM);
 	ks_wrreg16(ks, KS_TXCR, TXCR_TXFCE|TXCR_TXPE|TXCR_TXCRC|TXCR_TCGIP);
 
 	w = RXCR1_RXFCE|RXCR1_RXBE|RXCR1_RXUE|RXCR1_RXME|RXCR1_RXIPFCC;
@@ -1546,7 +1507,10 @@ static void __init ks_setup_int(struct ks_net *ks)
 	ks_wrreg16(ks, KS_ISR, 0xffff);
 
 	/* Enables the interrupts of the hardware. */
-	ks->rc_ier = IRQ_LCI | IRQ_RXI | IRQ_TXSAI;
+	ks->rc_ier = IRQ_LCI | IRQ_RXI | IRQ_TXI;
+
+	/* Interrupt after each packet sent */
+	ks->txh.txw[0] = cpu_to_le16(TXFR_TXIC);
 }  /* ks_setup_int */
 
 static void __init ks_hw_init(struct ks_net *ks)

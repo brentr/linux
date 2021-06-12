@@ -432,7 +432,7 @@ union ks_tx_hdr {
  * @mcast_lst    	: multicast list.
  * @mcast_bits    	: multicast enabed.
  * @mac_addr   		: MAC address assigned to this device.
- * @fid    		: frame id.
+ * @txbusy    		: tx fifo not empty flag
  * @extra_byte    	: number of extra byte prepended rx pkt.
  * @enabled    		: indicator this device works.
  *
@@ -474,7 +474,7 @@ struct ks_net {
 	u8			mcast_lst[MAX_MCAST_LST][ETH_ALEN];
 	u8			mcast_bits[HW_MCAST_SIZE];
 	u8			mac_addr[6];
-	u8                      fid;
+	u8			txbusy;
 	u8			extra_byte;
 	u8			enabled;
 };
@@ -917,8 +917,10 @@ static irqreturn_t ks_irq(int irq, void *pw)
 	if (unlikely(status & IRQ_LCI))
 		ks_update_link_status(netdev, ks);
 
-	if (likely(status & IRQ_TXI))
+	if (likely(status & IRQ_TXI)) {
+		ks->txbusy = false;
 		netif_wake_queue(netdev);
+	}
 
 	if (unlikely(status & IRQ_LDI)) {
 		u16 pmecr = ks_rdreg16(ks, KS_PMECR);
@@ -1050,8 +1052,14 @@ static int ks_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct ks_net *ks = netdev_priv(netdev);
 	disable_irq(netdev->irq);
-	ks_write_qmu(ks, skb->data, skb->len);
 	netif_stop_queue(netdev);
+	if (unlikely(ks->txbusy)) {  //TX overrun
+		enable_irq(netdev->irq);
+		netdev_err(netdev, "BUSY\n");
+	  return NETDEV_TX_BUSY;
+	}
+	ks_write_qmu(ks, skb->data, skb->len);
+	ks->txbusy = true;
 	enable_irq(netdev->irq);
 	netdev->stats.tx_bytes += skb->len;
 	netdev->stats.tx_packets++;

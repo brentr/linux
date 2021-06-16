@@ -22,8 +22,10 @@
  */
 
 /**
+ * Revised:  6/15/21 brent@mbari.org
+ * 	optimized TX interrupts for both 100Mbit and 10Mbit operation on slower CPUs
  * Revised:  6/11/21 brent@mbari.org
- * 	pluged memory leak by simplifying ks_start_xmit
+ * 	plugged memory leak by simplifying ks_start_xmit
  * Revised:  6/20/20 brent@mbari.org
  *  Added support for setting MAC address via bootline option
  *  Added support for setting power saving mode
@@ -59,6 +61,8 @@
 #include <linux/of_net.h>
 
 #define	DRV_NAME	"ks8851_mll"
+
+#define TX_FIFO_SIZE 	(6*1024)  //TX fifo size in bytes
 
 #define MAX_RECV_FRAMES			192  /* in case short frames queued */
 #define MAX_BUF_SIZE			2048
@@ -432,7 +436,6 @@ union ks_tx_hdr {
  * @mcast_lst    	: multicast list.
  * @mcast_bits    	: multicast enabed.
  * @mac_addr   		: MAC address assigned to this device.
- * @txbusy    		: tx fifo not empty flag
  * @extra_byte    	: number of extra byte prepended rx pkt.
  * @enabled    		: indicator this device works.
  *
@@ -474,7 +477,6 @@ struct ks_net {
 	u8			mcast_lst[MAX_MCAST_LST][ETH_ALEN];
 	u8			mcast_bits[HW_MCAST_SIZE];
 	u8			mac_addr[6];
-	u8			txbusy;
 	u8			extra_byte;
 	u8			enabled;
 };
@@ -581,13 +583,6 @@ static inline void ks_outblk(struct ks_net *ks, const u16 *rptr, u32 len)
 	iowrite16_rep(ks->hw_addr, rptr, len/2);
 }
 
-#if 0
-static void ks_disable_int(struct ks_net *ks)
-{
-	ks_wrreg16(ks, KS_IER, 0x0000);
-}  /* ks_disable_int */
-#endif
-
 static void ks_enable_int(struct ks_net *ks)
 {
 	ks_wrreg16(ks, KS_IER, ks->rc_ier);
@@ -600,7 +595,7 @@ static void ks_enable_int(struct ks_net *ks)
  */
 static inline u16 ks_tx_fifo_space(struct ks_net *ks)
 {
-	return ks_rdreg16(ks, KS_TXMIR) & 0x1fff;
+	return ks_rdreg16(ks, KS_TXMIR);
 }
 
 /**
@@ -917,10 +912,8 @@ static irqreturn_t ks_irq(int irq, void *pw)
 	if (unlikely(status & IRQ_LCI))
 		ks_update_link_status(netdev, ks);
 
-	if (likely(status & IRQ_TXI)) {
-		ks->txbusy = false;
+	if (status & ks->rc_ier & IRQ_TXI)
 		netif_wake_queue(netdev);
-	}
 
 	if (unlikely(status & IRQ_LDI)) {
 		u16 pmecr = ks_rdreg16(ks, KS_PMECR);
@@ -964,9 +957,12 @@ static int ks_net_open(struct net_device *netdev)
 	}
 
 	ks_wake(ks);
-	ks_wrreg16(ks, KS_P1CR, p1cr);
-	ks_wrreg16(ks, KS_ISR, 0xffff);
+	ks_wrreg16(ks, KS_P1CR, p1cr);   // customize phy */
+	ks_wrreg16(ks, KS_ISR, 0xffff);  // Clear any pending hardware interrupts
 	netif_carrier_off(netdev);
+
+	/* Enable interrupts, leaving TXI disabled until there's a TX overrun */
+	ks->rc_ier = IRQ_LCI | IRQ_RXI;
 	ks_enable_int(ks);
 	ks_enable_qmu(ks);
 	netif_start_queue(netdev);
@@ -1052,14 +1048,17 @@ static int ks_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct ks_net *ks = netdev_priv(netdev);
 	disable_irq(netdev->irq);
-	netif_stop_queue(netdev);
-	if (unlikely(ks->txbusy)) {  //TX overrun
+	if (ks->rc_ier & IRQ_TXI)    //using TXI interrupts?
+		netif_stop_queue(netdev);  //if so, stop queue until next TXI
+	else if (ks_tx_fifo_space(ks) < TX_FIFO_SIZE) {  //use TXI to avoid overrun
+		ks->rc_ier |= IRQ_TXI;
+		ks_enable_int(ks);
+		netif_stop_queue(netdev);
 		enable_irq(netdev->irq);
-		netdev_err(netdev, "BUSY\n");
-	  return NETDEV_TX_BUSY;
+		netdev_notice(netdev, "BUSY\n");
+		return NETDEV_TX_BUSY;
 	}
 	ks_write_qmu(ks, skb->data, skb->len);
-	ks->txbusy = true;
 	enable_irq(netdev->irq);
 	netdev->stats.tx_bytes += skb->len;
 	netdev->stats.tx_packets++;
@@ -1508,19 +1507,6 @@ static void __init ks_setup(struct ks_net *ks)
 }  /*ks_setup */
 
 
-static void __init ks_setup_int(struct ks_net *ks)
-{
-	ks->rc_ier = 0x00;
-	/* Clear the interrupts status of the hardware. */
-	ks_wrreg16(ks, KS_ISR, 0xffff);
-
-	/* Enables the interrupts of the hardware. */
-	ks->rc_ier = IRQ_LCI | IRQ_RXI | IRQ_TXI;
-
-	/* Interrupt after each packet sent */
-	ks->txh.txw[0] = cpu_to_le16(TXFR_TXIC);
-}  /* ks_setup_int */
-
 static void __init ks_hw_init(struct ks_net *ks)
 {
 #define	MHEADER_SIZE	(sizeof(struct type_frame_head) * MAX_RECV_FRAMES)
@@ -1661,7 +1647,8 @@ static int __init ks8851_probe(struct platform_device *pdev)
 	ks_hw_init(ks);
 	ks_disable_qmu(ks);
 	ks_setup(ks);
-	ks_setup_int(ks);
+	/* Interrupt after each packet sent */
+	ks->txh.txw[0] = cpu_to_le16(TXFR_TXIC);
 
 	data = ks_rdreg16(ks, KS_OBCR);
 	ks_wrreg16(ks, KS_OBCR, data | OBCR_ODS_16MA);

@@ -3768,7 +3768,11 @@ void serial8250_unregister_port(int line)
 }
 EXPORT_SYMBOL(serial8250_unregister_port);
 
-void awaitPeripheralReset(void);  //wait for peripheral reset pulse to end
+extern void awaitPeripheralReset(void) __attribute__((weak));
+void __attribute__((weak)) awaitPeripheralReset(void)
+{
+ //hook to wait for peripheral reset pulse to end 
+}
 
 static int __init serial8250_init(void)
 {

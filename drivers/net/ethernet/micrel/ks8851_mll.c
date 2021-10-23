@@ -928,53 +928,6 @@ static irqreturn_t ks_irq(int irq, void *pw)
 	return IRQ_HANDLED;
 }
 
-
-/**
- * ks_net_open - open network device
- * @netdev: The network device being opened.
- *
- * Called when the network device is marked active, such as a user executing
- * 'ifconfig up' on the device.
- */
-static int ks_net_open(struct net_device *netdev)
-{
-	struct ks_net *ks = netdev_priv(netdev);
-	int err;
-
-#define	KS_INT_FLAGS	IRQF_TRIGGER_LOW
-	/* lock the card, even if we may not actually do anything
-	 * else at the moment.
-	 */
-
-	netif_dbg(ks, ifup, netdev, "%s - entry\n", __func__);
-
-	/* reset the HW */
-	err = request_irq(netdev->irq, ks_irq, KS_INT_FLAGS, DRV_NAME, netdev);
-
-	if (err) {
-		pr_err("Failed to request IRQ: %d: %d\n", netdev->irq, err);
-		return err;
-	}
-
-	ks_wake(ks);
-	ks_wrreg16(ks, KS_P1CR, p1cr);   // customize phy */
-	ks_wrreg16(ks, KS_ISR, 0xffff);  // Clear any pending hardware interrupts
-	netif_carrier_off(netdev);
-
-	/* Enable interrupts, leaving TXI disabled until there's a TX overrun */
-	ks->rc_ier = IRQ_LCI | IRQ_RXI;
-	ks_enable_int(ks);
-	ks_enable_qmu(ks);
-	netif_start_queue(netdev);
-
-  /* switch to selected power saving mode */
-	if (pmMode >= ARRAY_SIZE(pmModes))
-		pmMode=0;
-	ks_set_powermode(ks, pmModes[pmMode]);
-	netdev_info(netdev, "power=%u, p1cr=0x%04x\n", pmMode, p1cr);
-	return 0;
-}
-
 /**
  * ks_net_stop - close network device
  * @netdev: The device being closed.
@@ -1275,16 +1228,12 @@ static void ks_set_mac(struct ks_net *ks, u8 *data)
 
 static int ks_set_mac_address(struct net_device *netdev, void *paddr)
 {
-	struct ks_net *ks = netdev_priv(netdev);
-	struct sockaddr *addr = paddr;
-	u8 *da;
-
-	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
-
-	da = (u8 *)netdev->dev_addr;
-
-	ks_set_mac(ks, da);
-	return 0;
+	if (!netif_running(netdev)) {
+	  struct sockaddr *addr = paddr;
+	  memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
+	  return 0;
+	}
+	return -EBUSY;
 }
 
 static int ks_net_ioctl(struct net_device *netdev, struct ifreq *req, int cmd)
@@ -1295,6 +1244,53 @@ static int ks_net_ioctl(struct net_device *netdev, struct ifreq *req, int cmd)
 		return -EINVAL;
 
 	return generic_mii_ioctl(&ks->mii, if_mii(req), cmd, NULL);
+}
+
+/**
+ * ks_net_open - open network device
+ * @netdev: The network device being opened.
+ *
+ * Called when the network device is marked active, such as a user executing
+ * 'ifconfig up' on the device.
+ */
+static int ks_net_open(struct net_device *netdev)
+{
+	struct ks_net *ks = netdev_priv(netdev);
+	int err;
+
+#define	KS_INT_FLAGS	IRQF_TRIGGER_LOW
+	/* lock the card, even if we may not actually do anything
+	 * else at the moment.
+	 */
+
+	netif_dbg(ks, ifup, netdev, "%s - entry\n", __func__);
+
+	/* reset the HW */
+	err = request_irq(netdev->irq, ks_irq, KS_INT_FLAGS, DRV_NAME, netdev);
+
+	if (err) {
+		pr_err("Failed to request IRQ: %d: %d\n", netdev->irq, err);
+		return err;
+	}
+
+	ks_wake(ks);
+	ks_wrreg16(ks, KS_P1CR, p1cr);   // customize phy */
+	ks_wrreg16(ks, KS_ISR, 0xffff);  // Clear any pending hardware interrupts
+	ks_set_mac(ks, netdev->dev_addr);
+	netif_carrier_off(netdev);
+
+	/* Enable interrupts, leaving TXI disabled until there's a TX overrun */
+	ks->rc_ier = IRQ_LCI | IRQ_RXI;
+	ks_enable_int(ks);
+	ks_enable_qmu(ks);
+	netif_start_queue(netdev);
+
+  /* switch to selected power saving mode */
+	if (pmMode >= ARRAY_SIZE(pmModes))
+		pmMode=0;
+	ks_set_powermode(ks, pmModes[pmMode]);
+	netdev_info(netdev, "power=%u, p1cr=0x%04x\n", pmMode, p1cr);
+	return 0;
 }
 
 static const struct net_device_ops ks_netdev_ops = {
@@ -1623,7 +1619,7 @@ static int __init ks8851_probe(struct platform_device *pdev)
 	ks->msg_enable = netif_msg_init(msg_enable, (NETIF_MSG_DRV |
 						     NETIF_MSG_PROBE |
 						     NETIF_MSG_LINK));
-  ks_wake(ks);
+	ks_wake(ks);
 	ks_read_config(ks);
 
 	/* simple check for a valid chip being connected to the bus */
@@ -1674,8 +1670,8 @@ static int __init ks8851_probe(struct platform_device *pdev)
 		netdev_info(netdev, "Using random mac address\n");
 	}
 	netdev_info(netdev, "MAC address: %pM\n", ks->mac_addr);
+	memcpy(netdev->perm_addr, ks->mac_addr, ETH_ALEN);
 	memcpy(netdev->dev_addr, ks->mac_addr, ETH_ALEN);
-	ks_set_mac(ks, netdev->dev_addr);
 	/* set powermode to soft power down to save power */
 	ks_set_powermode(ks, PMECR_PM_SOFTDOWN);
 	return 0;

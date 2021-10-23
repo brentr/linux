@@ -1096,7 +1096,6 @@ static int acm_probe(struct usb_interface *intf,
 	int ctrlsize, readsize;
 	u8 *buf;
 	u8 ac_management_function = 0;
-	u8 call_management_function = 0;
 	int call_interface_num = -1;
 	int data_interface_num = -1;
 	unsigned long quirks;
@@ -1185,10 +1184,7 @@ static int acm_probe(struct usb_interface *intf,
 		case USB_CDC_CALL_MANAGEMENT_TYPE:
 			if (elength < 5)
 				goto next_desc;
-			call_management_function = buffer[3];
 			call_interface_num = buffer[4];
-			if ((quirks & NOT_A_MODEM) == 0 && (call_management_function & 3) != 3)
-				dev_err(&intf->dev, "This device cannot do calls on its own. It is not a modem.\n");
 			break;
 		default:
 			/*

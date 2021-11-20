@@ -22,6 +22,8 @@
  */
 
 /**
+ * Revised:  11/19/21 brent@mbari.org
+ * 	Initialize __LINK_STATE_NOCARRIER flag to avoid initial change events
  * Revised:  6/15/21 brent@mbari.org
  * 	optimized TX interrupts for both 100Mbit and 10Mbit operation on slower CPUs
  * Revised:  6/11/21 brent@mbari.org
@@ -868,14 +870,13 @@ static void ks_rcv(struct ks_net *ks, struct net_device *netdev)
 static void ks_update_link_status(struct net_device *netdev, struct ks_net *ks)
 {
 	/* check the status of the link */
-	const char *link_up_status = "UP";
-	if (ks_rdreg16(ks, KS_P1SR) & P1SR_LINK_GOOD)
+	if (ks_rdreg16(ks, KS_P1SR) & P1SR_LINK_GOOD) {
 		netif_carrier_on(netdev);
-	else {
+		netdev_info(netdev, "link up\n");
+	}else{
 		netif_carrier_off(netdev);
-		link_up_status = "DOWN";
+		netdev_info(netdev, "link down\n");
 	}
-	netif_dbg(ks, link, netdev, "%s: %s\n", __func__, link_up_status);
 }
 
 /**
@@ -1636,6 +1637,8 @@ static int __init ks8851_probe(struct platform_device *pdev)
 		err = -ENODEV;
 		goto err_register;
 	}
+	/* await interrupt to signal carrier presence */
+	set_bit(__LINK_STATE_NOCARRIER, &netdev->state);
 
 	platform_set_drvdata(pdev, netdev);
 

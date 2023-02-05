@@ -1644,6 +1644,7 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 	if (!up->dma && (status & UART_LSR_THRE))
 		serial8250_tx_chars(up);
 
+	serial_port_in(port, UART_IIR);  //clear pending serviced interrupts
 	spin_unlock_irqrestore(&port->lock, flags);
 	return 1;
 }
@@ -1709,6 +1710,9 @@ static void stuckIRQ(struct uart_8250_port *up, int irq)
   	printk_ratelimited(KERN_ERR "8250: irq %d stuck\n", irq);
 }
 
+#if 1
+#include <mach/hardware.h>
+#endif
 
 /*
  * This is the serial driver's interrupt routine.
@@ -1729,11 +1733,16 @@ static irqreturn_t serial8250_interrupt(int irq, void *dev_id)
 	struct irq_info *i = dev_id;
 	struct list_head *l, *end;
 	int pass_counter = 0;
-    struct uart_8250_port *lastHandled = NULL;
+	struct uart_8250_port *lastHandled = NULL;
 
 	DEBUG_INTR("serial8250_interrupt(%d)...", irq);
 
 	spin_lock(&i->lock);
+#if 1
+do {
+  unsigned pending;
+  enum {globalXR16l788 = io_p2v(0x20000480)};
+#endif
 
 	l = end = i->head;
 	do {
@@ -1742,17 +1751,32 @@ static irqreturn_t serial8250_interrupt(int irq, void *dev_id)
 
 		if (port->handle_irq(port)) {
 			lastHandled = up;
-			end = l->next;  //check this port again before returning
+			end = l;	//check this port again before returning
 		}
 
 		l = l->next;
 
 		if (l == i->head && pass_counter++ > PASS_LIMIT) {
 			stuckIRQ(lastHandled, irq);
-			break;
+			goto escape;
 		}
 	} while (l != end);
 
+#if 1
+  pending = readb((unsigned char *)globalXR16l788);  //global interrupts pending
+  if (!pending)
+    break;
+  {
+	unsigned int1, int2, int3;
+	int1 = readb((unsigned char *)globalXR16l788+1);
+	int2 = readb((unsigned char *)globalXR16l788+2);
+	int3 = readb((unsigned char *)globalXR16l788+3);
+	printk (KERN_WARNING "xr16l788 0x%02x pending ints = 0x%06x (pass %d)\n",
+			pending, (int3<<16) | (int2<<8) | int1, pass_counter);
+  }
+} while(0);
+#endif
+escape:
 	spin_unlock(&i->lock);
 
 	DEBUG_INTR("end.\n");
@@ -1839,10 +1863,6 @@ static int serial_link_irq_chain(struct uart_8250_port *up)
 
 static void serial_unlink_irq_chain(struct uart_8250_port *up)
 {
-	/*
-	 * yes, some broken gcc emit "warning: 'i' may be used uninitialized"
-	 * but no, we are not going to take a patch that assigns NULL below.
-	 */
 	struct irq_info *i;
 	struct hlist_node *n;
 	struct hlist_head *h;
@@ -1853,17 +1873,13 @@ static void serial_unlink_irq_chain(struct uart_8250_port *up)
 
 	hlist_for_each(n, h) {
 		i = hlist_entry(n, struct irq_info, node);
-		if (i->irq == up->port.irq)
+		if (i->irq == up->port.irq) {
+			if (list_empty(i->head))
+				free_irq(up->port.irq, i);
+			serial_do_unlink(i, up);
 			break;
+		}
 	}
-
-	BUG_ON(n == NULL);
-	BUG_ON(i->head == NULL);
-
-	if (list_empty(i->head))
-		free_irq(up->port.irq, i);
-
-	serial_do_unlink(i, up);
 	mutex_unlock(&hash_mutex);
 }
 
@@ -3771,7 +3787,7 @@ EXPORT_SYMBOL(serial8250_unregister_port);
 extern void awaitPeripheralReset(void) __attribute__((weak));
 void __attribute__((weak)) awaitPeripheralReset(void)
 {
- //hook to wait for peripheral reset pulse to end 
+ //hook to wait for peripheral reset pulse to end
 }
 
 static int __init serial8250_init(void)

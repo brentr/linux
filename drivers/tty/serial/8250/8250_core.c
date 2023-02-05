@@ -82,6 +82,8 @@ static unsigned int skip_txen_test; /* force skip of txen test at init time */
 #define DEBUG_INTR(fmt...)	do { } while (0)
 #endif
 
+#define DEBUG_XR16_INTR  1
+
 #define PASS_LIMIT	512
 
 #define BOTH_EMPTY 	(UART_LSR_TEMT | UART_LSR_THRE)
@@ -1548,43 +1550,43 @@ void serial8250_tx_chars(struct uart_8250_port *up)
 		serial_out(up, UART_TX, port->x_char);
 		port->icount.tx++;
 		port->x_char = 0;
-		return;
-	}
-	if (uart_tx_stopped(port)) {
+
+	}else if (uart_tx_stopped(port)) {
 		serial8250_stop_tx(port);
-		return;
-	}
-	if (uart_circ_empty(xmit)) {
+
+	}else if (uart_circ_empty(xmit)) {
 		__stop_tx(up);
-		return;
+
+	}else{
+
+	  count = up->tx_loadsz;
+	  do {
+		  serial_out(up, UART_TX, xmit->buf[xmit->tail]);
+		  xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
+		  port->icount.tx++;
+		  if (uart_circ_empty(xmit))
+			  break;
+		  if (up->capabilities & UART_CAP_HFIFO) {
+			  if ((serial_port_in(port, UART_LSR) & BOTH_EMPTY) !=
+			      BOTH_EMPTY)
+				  break;
+		  }
+	  } while (--count > 0);
+
+	  if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+		  uart_write_wakeup(port);
+
+	  DEBUG_INTR("THRE...");
+
+	  /*
+	   * With RPM enabled, we have to wait once the FIFO is empty before the
+	   * HW can go idle. So we get here once again with empty FIFO and disable
+	   * the interrupt and RPM in __stop_tx()
+	   */
+	  if (uart_circ_empty(xmit) && !(up->capabilities & UART_CAP_RPM))
+		  __stop_tx(up);
 	}
-
-	count = up->tx_loadsz;
-	do {
-		serial_out(up, UART_TX, xmit->buf[xmit->tail]);
-		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
-		port->icount.tx++;
-		if (uart_circ_empty(xmit))
-			break;
-		if (up->capabilities & UART_CAP_HFIFO) {
-			if ((serial_port_in(port, UART_LSR) & BOTH_EMPTY) !=
-			    BOTH_EMPTY)
-				break;
-		}
-	} while (--count > 0);
-
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
-		uart_write_wakeup(port);
-
-	DEBUG_INTR("THRE...");
-
-	/*
-	 * With RPM enabled, we have to wait once the FIFO is empty before the
-	 * HW can go idle. So we get here once again with empty FIFO and disable
-	 * the interrupt and RPM in __stop_tx()
-	 */
-	if (uart_circ_empty(xmit) && !(up->capabilities & UART_CAP_RPM))
-		__stop_tx(up);
+	serial_port_in(port, UART_IIR);  //clear pending THRE interrupt
 }
 EXPORT_SYMBOL_GPL(serial8250_tx_chars);
 
@@ -1644,7 +1646,6 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 	if (!up->dma && (status & UART_LSR_THRE))
 		serial8250_tx_chars(up);
 
-	serial_port_in(port, UART_IIR);  //clear pending serviced interrupts
 	spin_unlock_irqrestore(&port->lock, flags);
 	return 1;
 }
@@ -1710,7 +1711,7 @@ static void stuckIRQ(struct uart_8250_port *up, int irq)
   	printk_ratelimited(KERN_ERR "8250: irq %d stuck\n", irq);
 }
 
-#if 1
+#if DEBUG_XR16_INTR
 #include <mach/hardware.h>
 #endif
 
@@ -1738,7 +1739,7 @@ static irqreturn_t serial8250_interrupt(int irq, void *dev_id)
 	DEBUG_INTR("serial8250_interrupt(%d)...", irq);
 
 	spin_lock(&i->lock);
-#if 1
+#if DEBUG_XR16_INTR
 do {
   unsigned pending;
   enum {globalXR16l788 = io_p2v(0x20000480)};
@@ -1762,7 +1763,7 @@ do {
 		}
 	} while (l != end);
 
-#if 1
+#if DEBUG_XR16_INTR
   pending = readb((unsigned char *)globalXR16l788);  //global interrupts pending
   if (!pending)
     break;

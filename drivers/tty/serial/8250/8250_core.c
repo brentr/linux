@@ -82,7 +82,7 @@ static unsigned int skip_txen_test; /* force skip of txen test at init time */
 #define DEBUG_INTR(fmt...)	do { } while (0)
 #endif
 
-#define DEBUG_XR16_INTR  1
+#define DEBUG_XR16_INTR  0
 
 #define PASS_LIMIT	512
 
@@ -1550,43 +1550,43 @@ void serial8250_tx_chars(struct uart_8250_port *up)
 		serial_out(up, UART_TX, port->x_char);
 		port->icount.tx++;
 		port->x_char = 0;
-
-	}else if (uart_tx_stopped(port)) {
-		serial8250_stop_tx(port);
-
-	}else if (uart_circ_empty(xmit)) {
-		__stop_tx(up);
-
-	}else{
-
-	  count = up->tx_loadsz;
-	  do {
-		  serial_out(up, UART_TX, xmit->buf[xmit->tail]);
-		  xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
-		  port->icount.tx++;
-		  if (uart_circ_empty(xmit))
-			  break;
-		  if (up->capabilities & UART_CAP_HFIFO) {
-			  if ((serial_port_in(port, UART_LSR) & BOTH_EMPTY) !=
-			      BOTH_EMPTY)
-				  break;
-		  }
-	  } while (--count > 0);
-
-	  if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
-		  uart_write_wakeup(port);
-
-	  DEBUG_INTR("THRE...");
-
-	  /*
-	   * With RPM enabled, we have to wait once the FIFO is empty before the
-	   * HW can go idle. So we get here once again with empty FIFO and disable
-	   * the interrupt and RPM in __stop_tx()
-	   */
-	  if (uart_circ_empty(xmit) && !(up->capabilities & UART_CAP_RPM))
-		  __stop_tx(up);
+		return;
 	}
-	serial_port_in(port, UART_IIR);  //clear pending THRE interrupt
+	if (uart_tx_stopped(port)) {
+		serial8250_stop_tx(port);
+		return;
+	}
+	if (uart_circ_empty(xmit)) {
+		__stop_tx(up);
+		return;
+	}
+
+	count = up->tx_loadsz;
+	do {
+		serial_out(up, UART_TX, xmit->buf[xmit->tail]);
+		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
+		port->icount.tx++;
+		if (uart_circ_empty(xmit))
+			break;
+		if (up->capabilities & UART_CAP_HFIFO) {
+			if ((serial_port_in(port, UART_LSR) & BOTH_EMPTY) !=
+			    BOTH_EMPTY)
+				break;
+		}
+	} while (--count > 0);
+
+	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+		uart_write_wakeup(port);
+
+	DEBUG_INTR("THRE...");
+
+	/*
+	 * With RPM enabled, we have to wait once the FIFO is empty before the
+	 * HW can go idle. So we get here once again with empty FIFO and disable
+	 * the interrupt and RPM in __stop_tx()
+	 */
+	if (uart_circ_empty(xmit) && !(up->capabilities & UART_CAP_RPM))
+		__stop_tx(up);
 }
 EXPORT_SYMBOL_GPL(serial8250_tx_chars);
 
@@ -1645,6 +1645,8 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 	serial8250_modem_status(up);
 	if (!up->dma && (status & UART_LSR_THRE))
 		serial8250_tx_chars(up);
+
+	serial_port_in(port, UART_IIR);  //clear any pending interrupt
 
 	spin_unlock_irqrestore(&port->lock, flags);
 	return 1;
@@ -1726,8 +1728,11 @@ static void stuckIRQ(struct uart_8250_port *up, int irq)
  * that all ports have been serviced, and therefore the ISA interrupt
  * line has been de-asserted.
  *
- * This means we need to loop through all ports. checking that they
- * don't have an interrupt pending.
+ * This means we need to loop through all ports until none have
+ * an interrupt pending.
+ *
+ * brent@mbari.org optimized this a bit by always handling
+ * the lastHandled port first, as ports usually interrupt in bursts
  */
 static irqreturn_t serial8250_interrupt(int irq, void *dev_id)
 {
@@ -1742,7 +1747,6 @@ static irqreturn_t serial8250_interrupt(int irq, void *dev_id)
 #if DEBUG_XR16_INTR
 do {
   unsigned pending;
-  enum {globalXR16l788 = io_p2v(0x20000480)};
 #endif
 
 	l = end = i->head;
@@ -1754,9 +1758,7 @@ do {
 			lastHandled = up;
 			end = l;	//check this port again before returning
 		}
-
 		l = l->next;
-
 		if (l == i->head && pass_counter++ > PASS_LIMIT) {
 			stuckIRQ(lastHandled, irq);
 			goto escape;
@@ -1764,20 +1766,21 @@ do {
 	} while (l != end);
 
 #if DEBUG_XR16_INTR
-  pending = readb((unsigned char *)globalXR16l788);  //global interrupts pending
-  if (!pending)
-    break;
+#define globalXR16l788 (unsigned char *)io_p2v(0x20000480)
+
+  if (!(pending = readb(globalXR16l788)))
+    break;  //if no global interrupts pending
   {
-	unsigned int1, int2, int3;
-	int1 = readb((unsigned char *)globalXR16l788+1);
-	int2 = readb((unsigned char *)globalXR16l788+2);
-	int3 = readb((unsigned char *)globalXR16l788+3);
+	unsigned int1 = readb(globalXR16l788+1),
+			 int2 = readb(globalXR16l788+2),
+			 int3 = readb(globalXR16l788+3);
 	printk (KERN_WARNING "xr16l788 0x%02x pending ints = 0x%06x (pass %d)\n",
 			pending, (int3<<16) | (int2<<8) | int1, pass_counter);
   }
 } while(0);
 #endif
 escape:
+	i->head = end;  //handle lastHandled port first next time
 	spin_unlock(&i->lock);
 
 	DEBUG_INTR("end.\n");

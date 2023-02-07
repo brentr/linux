@@ -1646,8 +1646,6 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 	if (!up->dma && (status & UART_LSR_THRE))
 		serial8250_tx_chars(up);
 
-	serial_port_in(port, UART_IIR);  //clear any pending interrupt
-
 	spin_unlock_irqrestore(&port->lock, flags);
 	return 1;
 }
@@ -1756,8 +1754,9 @@ do {
 
 		if (port->handle_irq(port)) {
 			lastHandled = up;
-			end = l;	//check this port again before returning
-		}
+			end = NULL;	//check this port again before returning
+		}else if (!end)
+			end = l;
 		l = l->next;
 		if (l == i->head && pass_counter++ > PASS_LIMIT) {
 			stuckIRQ(lastHandled, irq);

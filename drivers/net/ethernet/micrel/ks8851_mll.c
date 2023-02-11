@@ -22,8 +22,6 @@
  */
 
 /**
- * Revised:  11/19/21 brent@mbari.org
- * 	Initialize __LINK_STATE_NOCARRIER flag to avoid initial change events
  * Revised:  6/15/21 brent@mbari.org
  * 	optimized TX interrupts for both 100Mbit and 10Mbit operation on slower CPUs
  * Revised:  6/11/21 brent@mbari.org
@@ -1637,8 +1635,6 @@ static int __init ks8851_probe(struct platform_device *pdev)
 		err = -ENODEV;
 		goto err_register;
 	}
-	/* await interrupt to signal carrier presence */
-	set_bit(__LINK_STATE_NOCARRIER, &netdev->state);
 
 	platform_set_drvdata(pdev, netdev);
 

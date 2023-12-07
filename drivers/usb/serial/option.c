@@ -96,6 +96,7 @@ static void option_instat_callback(struct urb *urb);
 
 #define NOVATELWIRELESS_VENDOR_ID		0x1410
 
+
 /* YISO PRODUCTS */
 
 #define YISO_VENDOR_ID				0x0EAB
@@ -535,6 +536,10 @@ static void option_instat_callback(struct urb *urb);
 /* VIA Telecom */
 #define VIATELECOM_VENDOR_ID			0x15eb
 #define VIATELECOM_PRODUCT_CDS7			0x0001
+
+/* SIMCom */
+#define SIMCOM_VENDOR_ID			0x1E0E
+#define OPTION_PRODUCT_A76XX_MODEM	0x9011
 
 /* some devices interfaces need special handling due to a number of reasons */
 enum option_blacklist_reason {
@@ -1197,6 +1202,7 @@ static const struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(QUALCOMM_VENDOR_ID, 0x6613)}, /* Onda H600/ZTE MF330 */
 	{ USB_DEVICE(QUALCOMM_VENDOR_ID, 0x0023)}, /* ONYX 3G device */
 	{ USB_DEVICE(QUALCOMM_VENDOR_ID, 0x9000)}, /* SIMCom SIM5218 */
+	{ USB_DEVICE(SIMCOM_VENDOR_ID, OPTION_PRODUCT_A76XX_MODEM) },
 	{ USB_DEVICE_INTERFACE_CLASS(SIERRA_VENDOR_ID, 0x68c0, 0xff),
 	  .driver_info = (kernel_ulong_t)&sierra_mc73xx_blacklist }, /* MC73xx */
 	{ USB_DEVICE_INTERFACE_CLASS(SIERRA_VENDOR_ID, 0x9041, 0xff),
@@ -2063,6 +2069,8 @@ static const struct usb_device_id option_ids[] = {
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x03f0, 0xa31d, 0xff, 0x06, 0x13) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x03f0, 0xa31d, 0xff, 0x06, 0x14) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x03f0, 0xa31d, 0xff, 0x06, 0x1b) },
+
+
 	{ } /* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, option_ids);

@@ -1,5 +1,5 @@
 /*
-  USB Driver for GSM modems -- updated 9/2/20 brent@mbari.org
+  USB Driver for GSM modems -- updated 12/11/23 brent@mbari.org
 
   Copyright (C) 2005  Matthias Urlichs <smurf@smurf.noris.de>
 
@@ -342,6 +342,7 @@ static void option_instat_callback(struct urb *urb);
 #define SIMCOM_VENDOR_ID			ALINK_VENDOR_ID
 #define SIMCOM_PRODUCT_SIM7100E			0x9001
 #define SIMCOM_PRODUCT_A76XX				0x9011
+#define SIMCOM_PRODUCT_A7080				0x9205
 
 /* ALCATEL PRODUCTS */
 #define ALCATEL_VENDOR_ID			0x1bbb
@@ -648,6 +649,10 @@ static const struct option_blacklist_info zte_1255_blacklist = {
 
 static const struct option_blacklist_info simcom_sim7100e_blacklist = {
 	.reserved = BIT(5) | BIT(6),
+};
+
+static const struct option_blacklist_info simcom_sim767x_blacklist = {
+	.reserved = BIT(0) | BIT(1),
 };
 
 static const struct option_blacklist_info telit_me910_blacklist = {
@@ -1880,7 +1885,9 @@ static const struct usb_device_id option_ids[] = {
 	{ USB_DEVICE_AND_INTERFACE_INFO(ALINK_VENDOR_ID, ALINK_PRODUCT_3GU, 0xff, 0xff, 0xff) },
 	{ USB_DEVICE(SIMCOM_VENDOR_ID, SIMCOM_PRODUCT_SIM7100E),
 	  .driver_info = (kernel_ulong_t)&simcom_sim7100e_blacklist },
-	{ USB_DEVICE(SIMCOM_VENDOR_ID, SIMCOM_PRODUCT_A76XX) },
+	{ USB_DEVICE(SIMCOM_VENDOR_ID, SIMCOM_PRODUCT_A76XX),
+		.driver_info = (kernel_ulong_t)&simcom_sim767x_blacklist },
+	{ USB_DEVICE(SIMCOM_VENDOR_ID, SIMCOM_PRODUCT_A7080), },
 	{ USB_DEVICE(ALCATEL_VENDOR_ID, ALCATEL_PRODUCT_X060S_X200),
 	  .driver_info = (kernel_ulong_t)&alcatel_x200_blacklist
 	},

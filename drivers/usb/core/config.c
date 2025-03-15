@@ -519,7 +519,7 @@ static int usb_parse_configuration(struct usb_device *dev, int cfgidx,
 			}
 
 			if (inum >= nintf_orig)
-				dev_warn(ddev, "config %d has an invalid "
+				dev_info(ddev, "config %d has an invalid "
 				    "interface number: %d but max is %d\n",
 				    cfgno, inum, nintf_orig - 1);
 
@@ -585,7 +585,7 @@ static int usb_parse_configuration(struct usb_device *dev, int cfgidx,
 				break;
 		}
 		if (j >= nintf)
-			dev_warn(ddev, "config %d has no interface number "
+			dev_info(ddev, "config %d has no interface number "
 			    "%d\n", cfgno, i);
 	}
 

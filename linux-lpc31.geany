@@ -18,9 +18,9 @@ detect_indent_width=true
 indent_mode=2
 
 [project]
-name=linux
+name=linux-lpc31
 base_path=./
-description=Linux Kernel (for NXP LPC31xx)
+description=Linux Kernel for the MBARI ESP on NXP LPC313x/314x
 file_patterns=*.c;*.h;
 
 [long line marker]

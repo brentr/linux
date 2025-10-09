@@ -1,5 +1,5 @@
 /*
-  USB Driver for GSM modems -- updated 10/8/25 brent@mbari.org
+  USB Driver for GSM modems -- updated 10/9/25 brent@mbari.org
 
   Copyright (C) 2005  Matthias Urlichs <smurf@smurf.noris.de>
 
@@ -281,10 +281,10 @@ static void option_instat_callback(struct urb *urb);
 #define TELIT_PRODUCT_LE922_USBCFG3		0x1043
 #define TELIT_PRODUCT_LE922_USBCFG5		0x1045
 #define TELIT_PRODUCT_ME910			0x1100
-#define TELIT_PRODUCT_ME910_DUAL_MODEM			0x1101
+#define TELIT_PRODUCT_ME910_DUAL_MODEM		0x1101
 #define TELIT_PRODUCT_ME910_DUAL_MODEM_ECM	0x1102
-#define TELIT_PRODUCT_ME910G1   						0x110a
-#define TELIT_PRODUCT_ME910G1_ECM   				0x110a
+#define TELIT_PRODUCT_ME910G1   		0x110a
+#define TELIT_PRODUCT_ME910G1_ECM   		0x110b
 #define TELIT_PRODUCT_LE920			0x1200
 #define TELIT_PRODUCT_LE910			0x1201
 #define TELIT_PRODUCT_LE910_USBCFG4		0x1206
@@ -342,7 +342,7 @@ static void option_instat_callback(struct urb *urb);
 
 /* SIMCom shares vendor ID with ALINK */
 #define SIMCOM_VENDOR_ID			ALINK_VENDOR_ID
-#define SIMCOM_PRODUCT_SIM7100E		0x9001
+#define SIMCOM_PRODUCT_SIM7100E			0x9001
 #define SIMCOM_PRODUCT_A76XX			0x9011
 #define SIMCOM_PRODUCT_A7080			0x9205
 
